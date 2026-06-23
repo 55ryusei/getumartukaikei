@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>月末会計・月末明細 出力ツール</title>
+<title>月末集計・月末明細 出力ツール</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -248,6 +248,25 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
 .prst-item { display:flex; align-items:center; gap:6px; padding:5px 4px; border-bottom:1px solid #f3f4f6; font-size:0.85rem; }
 .prst-item:last-child { border-bottom:none; }
 
+/* ===== Inline amount input ===== */
+.inline-amt {
+  width: 100%; text-align: right; border: none; background: transparent;
+  font-size: inherit; font-family: inherit; color: inherit; outline: none;
+  cursor: text; padding: 0;
+  -moz-appearance: textfield;
+}
+.inline-amt::-webkit-inner-spin-button,
+.inline-amt::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.inline-amt:focus { background: #fff8e1; border-radius: 3px; }
+.inline-amt-cell { padding: 2px 6px !important; }
+.hdr-sep { width: 1px; background: #4a6aa0; align-self: stretch; margin: 4px 2px; }
+
+/* ===== Footer ===== */
+.app-footer {
+  text-align: right; font-size: 0.72rem; color: #9ca3af;
+  padding: 8px 20px; margin-top: 10px;
+}
+
 /* ===== Notices ===== */
 .notice {
   background: #fef9c3;
@@ -258,13 +277,17 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
   color: #713f12;
   margin-bottom: 10px;
 }
+
+/* ===== Keyboard nav focus ===== */
+.table-wrap:focus { outline: 2px solid #2563eb; outline-offset: -2px; }
+.table-wrap:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
 </style>
 </head>
 <body>
 
 <!-- Header -->
 <div class="app-header">
-  <span class="app-title">月末会計・月末明細 ツール</span>
+  <span class="app-title">月末集計・月末明細 ツール</span>
   <div class="header-fields">
     <label>年度</label>
     <input id="h-year" type="text" placeholder="例: 8" maxlength="4">
@@ -273,18 +296,18 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
   </div>
   <div class="header-buttons">
     <button class="btn btn-white" onclick="saveJSON()">保存</button>
-    <label class="btn btn-white" style="cursor:pointer">
-      読込
-      <input type="file" accept=".json" onchange="loadJSON(event)" style="display:none">
-    </label>
-    <button class="btn btn-green" onclick="exportExcel()">Excel 出力</button>
+    <label class="btn btn-white" style="cursor:pointer">読込<input type="file" accept=".json" onchange="loadJSON(event)" style="display:none"></label>
+    <div class="hdr-sep"></div>
+    <button class="btn btn-green" onclick="exportExcel()">Excel</button>
+    <div class="hdr-sep"></div>
     <button class="btn btn-white" onclick="openSettings()">設定</button>
+    <button class="btn btn-red" onclick="resetAll()">リセット</button>
   </div>
 </div>
 
 <!-- Tabs -->
 <div class="tab-bar">
-  <button class="tab-btn active" onclick="switchTab('kaikei', this)">月末会計</button>
+  <button class="tab-btn active" onclick="switchTab('kaikei', this)">月末集計</button>
   <button class="tab-btn" onclick="switchTab('meisai', this)">月末明細</button>
 </div>
 
@@ -297,7 +320,7 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
     <button class="btn btn-gray btn-sm" onclick="moveVendor(-1)" title="上に移動">↑</button>
     <button class="btn btn-gray btn-sm" onclick="moveVendor(1)"  title="下に移動">↓</button>
   </div>
-  <div class="table-wrap">
+  <div class="table-wrap" id="vendor-table-wrap" tabindex="0">
     <table class="data-table">
       <thead>
         <tr>
@@ -333,7 +356,7 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
         <button class="btn btn-gray btn-xs" onclick="moveEntry('cash',-1)">↑</button>
         <button class="btn btn-gray btn-xs" onclick="moveEntry('cash',1)">↓</button>
       </div>
-      <div class="table-wrap" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb">
+      <div class="table-wrap" id="cash-table-wrap" tabindex="0" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb">
         <table class="data-table">
           <thead>
             <tr>
@@ -362,7 +385,7 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
         <button class="btn btn-gray btn-xs" onclick="moveEntry('transfer',-1)">↑</button>
         <button class="btn btn-gray btn-xs" onclick="moveEntry('transfer',1)">↓</button>
       </div>
-      <div class="table-wrap" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb">
+      <div class="table-wrap" id="transfer-table-wrap" tabindex="0" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb">
         <table class="data-table">
           <thead>
             <tr>
@@ -384,7 +407,7 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
   </div><!-- /two-panel -->
 
   <div style="margin-top:12px">
-    <button class="btn btn-gray" onclick="printKaikei()">月末会計 印刷プレビュー</button>
+    <button class="btn btn-gray" onclick="printKaikei()">月末集計 印刷プレビュー</button>
   </div>
 </div>
 
@@ -488,6 +511,12 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
     <div class="fg">
       <label>備考</label>
       <input id="e-note" type="text" placeholder="例: 振込用紙">
+    </div>
+    <div id="e-postal-wrap" style="display:none;margin-top:8px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.88rem">
+        <input id="e-postal" type="checkbox">
+        <span>〒 郵便局セクションに追加</span>
+      </label>
     </div>
     <div class="modal-btns">
       <button class="btn btn-gray" onclick="closeEntryModal()">キャンセル</button>
@@ -722,9 +751,8 @@ function renderVendors() {
       : v.regNum ? `登録番号 ${esc(v.regNum)}` : '';
     const sel = i === selV ? ' selected' : '';
     const meisai = esc(meisaiDisplay(v));
-    const kaikei = v.amount > 0 ? `¥ ${fmt(v.amount)}` : '0';
     return `<tr class="${sel}" draggable="true"
-      onclick="selV=${i};renderVendors()" ondblclick="openVendorModal(${i})"
+      onclick="selV=${i};renderVendors();document.getElementById('vendor-table-wrap').focus()" ondblclick="openVendorModal(${i})"
       ondragstart="onDragStart(event,'vendor',${i})"
       ondragend="onDragEnd(event)"
       ondragover="onDragOver(event)"
@@ -733,8 +761,8 @@ function renderVendors() {
       <td>${i+1}</td>
       <td>${esc(v.name)}</td>
       <td style="font-size:0.82rem">${info}</td>
-      <td class="num" style="font-size:0.82rem">${meisai}</td>
-      <td class="num">${kaikei}</td>
+      <td style="font-size:0.82rem">${meisai}</td>
+      <td class="num">${v.amount > 0 ? '¥ ' + fmt(v.amount) : '0'}</td>
       <td style="font-size:0.82rem;color:#6b7280"></td>
       <td class="act">
         <button class="btn btn-amber btn-xs" onclick="openVendorModal(${i});event.stopPropagation()">編集</button>
@@ -742,6 +770,21 @@ function renderVendors() {
       </td>
     </tr>`;
   }).join('');
+}
+
+function inlineEntryAmountSave(kind, idx, val) {
+  const list = kind === 'cash' ? S.cash : S.transfer;
+  list[idx].amount = parseInt(val) || 0;
+  const totId = kind === 'cash' ? 'cash-total' : 'transfer-total';
+  const total = list.filter(e => !e.isHeader).reduce((s, e) => s + (e.amount || 0), 0);
+  document.getElementById(totId).textContent = '¥ ' + fmt(total);
+}
+function resetAll() {
+  if (!confirm('現在の入力データをすべてリセットします。\nこの操作は元に戻せません。よろしいですか？')) return;
+  initFromMaster();
+  renderVendors();
+  renderTable('cash');
+  renderTable('transfer');
 }
 
 function editSelVendor() {
@@ -801,6 +844,9 @@ function openVendorModal(idx, masterMode) {
 }
 function closeVendorModal() {
   document.getElementById('vendor-overlay').classList.add('hidden');
+  if (!vendorMasterMode) {
+    setTimeout(() => document.getElementById('vendor-table-wrap').focus(), 50);
+  }
 }
 function toggleVInfo() {
   const isBank = document.querySelector('input[name="v-type"]:checked').value === 'bank';
@@ -832,15 +878,21 @@ function saveVendor() {
     renderMasterList('vendor');
   } else {
     const entry = { ...base, amount: parseInt(document.getElementById('v-amount').value) || 0 };
-    if (editVIdx !== null) {
-      S.vendors[editVIdx] = entry;
-    } else {
+    const isNew = editVIdx === null;
+    if (isNew) {
       S.vendors.push(entry);
+    } else {
+      S.vendors[editVIdx] = entry;
     }
     S.vendors.sort(vendorCmp);
     selV = S.vendors.indexOf(entry);
     closeVendorModal();
     renderVendors();
+    if (isNew && confirm('マスターに追加しますか？')) {
+      MASTER.vendors.push({ ...base });
+      MASTER.vendors.sort(vendorCmp);
+      saveMaster();
+    }
   }
 }
 
@@ -871,14 +923,19 @@ function renderTable(kind) {
     }
     const sc = i === sel ? ' selected' : '';
     return `<tr class="${sc}" draggable="true"
-      onclick="${selRef}=${i};renderTable('${kind}')" ondblclick="openEntryModal('${kind}',${i})"
+      onclick="${selRef}=${i};renderTable('${kind}');document.getElementById('${kind}-table-wrap').focus()" ondblclick="openEntryModal('${kind}',${i})"
       ondragstart="onDragStart(event,'${kind}',${i})"
       ondragend="onDragEnd(event)"
       ondragover="onDragOver(event)"
       ondragleave="onDragLeave(event)"
       ondrop="onDrop(event,'${kind}',${i})">
       <td>${esc(e.name)}</td>
-      <td class="num">${e.amount > 0 ? '¥ ' + fmt(e.amount) : '0'}</td>
+      <td class="num inline-amt-cell" onclick="event.stopPropagation()">
+        <input type="number" min="0" value="${e.amount || ''}" placeholder="0" class="inline-amt"
+          onfocus="${selRef}=${i};document.querySelectorAll('#${tbId} tr').forEach((r,j)=>r.classList.toggle('selected',j===${i}))"
+          onblur="inlineEntryAmountSave('${kind}',${i},this.value)"
+          onkeydown="if(event.key==='Enter'){inlineEntryAmountSave('${kind}',${i},this.value);this.blur();document.getElementById('${kind}-table-wrap').focus()}else if(event.key==='Escape'){this.blur();document.getElementById('${kind}-table-wrap').focus()}">
+      </td>
       <td>${esc(e.note)}</td>
       <td class="act">
         <button class="btn btn-amber btn-xs" onclick="openEntryModal('${kind}',${i});event.stopPropagation()">編集</button>
@@ -935,11 +992,19 @@ function openEntryModal(kind, idx) {
   document.getElementById('e-amount').value = e ? e.amount : 0;
   document.getElementById('e-note').value   = e ? e.note   : '';
 
+  const postalWrap = document.getElementById('e-postal-wrap');
+  const postalChk  = document.getElementById('e-postal');
+  postalWrap.style.display = (kind === 'transfer' && !e) ? '' : 'none';
+  postalChk.checked = false;
+
   document.getElementById('entry-overlay').classList.remove('hidden');
   setTimeout(() => document.getElementById('e-name').focus(), 50);
 }
 function closeEntryModal() {
   document.getElementById('entry-overlay').classList.add('hidden');
+  if (editEKind) {
+    setTimeout(() => document.getElementById(editEKind + '-table-wrap').focus(), 50);
+  }
 }
 function saveEntry() {
   const name = document.getElementById('e-name').value.trim();
@@ -949,16 +1014,43 @@ function saveEntry() {
     amount: parseInt(document.getElementById('e-amount').value) || 0,
     note:   document.getElementById('e-note').value.trim(),
   };
-  const list = editEKind === 'cash' ? S.cash : S.transfer;
-  if (editEIdx !== null) {
-    list[editEIdx] = entry;
+  const list  = editEKind === 'cash' ? S.cash : S.transfer;
+  const isNew = editEIdx === null;
+  const isPostal = document.getElementById('e-postal')?.checked;
+
+  if (isNew) {
+    if (editEKind === 'transfer') {
+      const hIdx = list.findIndex(e => e.isHeader);
+      if (!isPostal && hIdx >= 0) {
+        list.splice(hIdx, 0, entry);
+        selT = hIdx;
+      } else {
+        list.push(entry);
+        selT = list.length - 1;
+      }
+    } else {
+      list.push(entry);
+      selC = list.length - 1;
+    }
   } else {
-    list.push(entry);
-    if (editEKind === 'cash') selC = list.length - 1;
-    else                      selT = list.length - 1;
+    list[editEIdx] = entry;
   }
   closeEntryModal();
   renderTable(editEKind);
+  if (isNew && confirm('マスターに追加しますか？')) {
+    const mEntry = { name: entry.name, note: entry.note || '' };
+    if (editEKind === 'transfer') {
+      const hIdx = MASTER.transfer.findIndex(e => e.isHeader);
+      if (!isPostal && hIdx >= 0) {
+        MASTER.transfer.splice(hIdx, 0, mEntry);
+      } else {
+        MASTER.transfer.push(mEntry);
+      }
+    } else {
+      MASTER.cash.push(mEntry);
+    }
+    saveMaster();
+  }
 }
 
 // ============================================================
@@ -1448,9 +1540,103 @@ makeBackdropClose('vendor-overlay',   closeVendorModal);
 makeBackdropClose('entry-overlay',    closeEntryModal);
 makeBackdropClose('settings-overlay', closeSettings);
 
-// Enter key to submit modals
-document.getElementById('v-notes').addEventListener('keydown', e => { if (e.key === 'Enter') saveVendor(); });
-document.getElementById('e-note').addEventListener('keydown',  e => { if (e.key === 'Enter') saveEntry(); });
+// ============================================================
+// Modal keyboard navigation — Enter / ↑↓ で項目間を移動、Escape で閉じる
+// ============================================================
+function _modalChain(overlayId) {
+  const overlay = document.getElementById(overlayId);
+  return Array.from(overlay.querySelectorAll(
+    'input[type="text"], input[type="number"], select, button.btn-blue'
+  )).filter(el => {
+    if (el.disabled) return false;
+    let p = el.parentElement;
+    while (p && p !== overlay) {
+      if (window.getComputedStyle(p).display === 'none') return false;
+      p = p.parentElement;
+    }
+    return true;
+  });
+}
+function _modalMove(el, overlayId, dir) {
+  const chain = _modalChain(overlayId);
+  const idx = chain.indexOf(el);
+  if (idx < 0) return;
+  const next = chain[idx + dir];
+  if (!next) return;
+  next.focus();
+  if (next.tagName !== 'BUTTON') { try { next.select(); } catch(e2) {} }
+}
+['entry-overlay', 'vendor-overlay'].forEach(ovId => {
+  document.getElementById(ovId).addEventListener('keydown', function(ev) {
+    if (ev.key === 'Escape') {
+      ev.preventDefault();
+      if (ovId === 'entry-overlay') closeEntryModal(); else closeVendorModal();
+      return;
+    }
+    const el   = ev.target;
+    const tag  = el.tagName;
+    const type = (el.type || '').toLowerCase();
+    const isText   = tag === 'INPUT' && type === 'text';
+    const isNumber = tag === 'INPUT' && type === 'number';
+    const isSelect = tag === 'SELECT';
+    if (!isText && !isNumber && !isSelect) return;
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      _modalMove(el, ovId, 1);
+    } else if (isText && ev.key === 'ArrowDown') {
+      ev.preventDefault();
+      _modalMove(el, ovId, 1);
+    } else if (isText && ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      _modalMove(el, ovId, -1);
+    }
+  });
+});
+
+// ============================================================
+// Keyboard navigation (十字キーで行選択)
+// ============================================================
+function _navList(kind, dir) {
+  const list = kind === 'vendor' ? S.vendors
+             : kind === 'cash'   ? S.cash
+             :                     S.transfer;
+  // ヘッダー行を除いた移動可能なインデックス一覧
+  const navIdx = list.reduce((arr, e, i) => { if (!e.isHeader) arr.push(i); return arr; }, []);
+  if (!navIdx.length) return;
+
+  const curSel = kind === 'vendor' ? selV : kind === 'cash' ? selC : selT;
+  const curPos = navIdx.indexOf(curSel);
+  const newPos = curPos === -1
+    ? (dir > 0 ? 0 : navIdx.length - 1)
+    : Math.max(0, Math.min(navIdx.length - 1, curPos + dir));
+  const newSel = navIdx[newPos];
+
+  if (kind === 'vendor')    { selV = newSel; renderVendors(); }
+  else if (kind === 'cash') { selC = newSel; renderTable('cash'); }
+  else                      { selT = newSel; renderTable('transfer'); }
+
+  // 選択行をスクロールして表示
+  const tbId = kind === 'vendor' ? 'vendor-tbody'
+             : kind === 'cash'   ? 'cash-tbody'
+             :                     'transfer-tbody';
+  const rows = document.querySelectorAll('#' + tbId + ' tr');
+  if (rows[newSel]) rows[newSel].scrollIntoView({ block: 'nearest' });
+}
+
+function _attachTableKeydown(wrapId, kind) {
+  document.getElementById(wrapId).addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      _navList(kind, e.key === 'ArrowDown' ? 1 : -1);
+    } else if (e.key === 'Enter') {
+      const sel = kind === 'vendor' ? selV : kind === 'cash' ? selC : selT;
+      if (sel !== null) {
+        if (kind === 'vendor') openVendorModal(sel);
+        else openEntryModal(kind, sel);
+      }
+    }
+  });
+}
 
 // Initial render
 loadMaster();
@@ -1458,6 +1644,10 @@ initFromMaster();
 renderVendors();
 renderTable('cash');
 renderTable('transfer');
+_attachTableKeydown('vendor-table-wrap', 'vendor');
+_attachTableKeydown('cash-table-wrap',   'cash');
+_attachTableKeydown('transfer-table-wrap', 'transfer');
 </script>
+<div class="app-footer">©2026 SWIFTRAPTOR</div>
 </body>
 </html>
