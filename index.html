@@ -5,106 +5,220 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>月末集計・月末明細 出力ツール</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ios-blue: #007aff;
+  --ios-blue-dark: #0060df;
+  --ios-green: #34c759;
+  --ios-green-dark: #248a3d;
+  --ios-orange: #ff9500;
+  --ios-orange-dark: #c93400;
+  --ios-red: #ff3b30;
+  --ios-red-dark: #d70015;
+  --ios-gray: #8e8e93;
+  --ios-gray-dark: #636366;
+  --ios-bg: #f2f2f7;
+  --ios-card: #ffffff;
+  --ios-border: #e5e5ea;
+  --ios-border-strong: #d1d1d6;
+  --ios-text: #1c1c1e;
+  --ios-text-secondary: #6e6e73;
+  --ios-text-tertiary: #8e8e93;
+  --ios-surface2: #fafafc;
+  --ios-hover-bg: #f7f8fa;
+  --ios-selected-bg: #e8f2ff;
+  --ios-postal-bg: #dbeafe;
+  --ios-postal-text: #1e3a5f;
+  --ios-notice-bg: #fff8e6;
+  --ios-notice-border: #ffe4a3;
+  --ios-notice-text: #8a5a00;
+  --ios-btn-white-bg: rgba(0,0,0,0.05);
+  --ios-btn-white-bg-hover: rgba(0,0,0,0.08);
+  --ios-header-bg: rgba(255,255,255,0.92);
+  --ios-overlay-bg: rgba(0,0,0,0.4);
+  --ios-shadow-sm: rgba(0,0,0,0.05);
+  --ios-segment-bg: #e5e5ea;
+}
+:root[data-theme="dark"] {
+  --ios-blue: #0a84ff;
+  --ios-blue-dark: #409cff;
+  --ios-green: #30d158;
+  --ios-green-dark: #63e07a;
+  --ios-orange: #ff9f0a;
+  --ios-orange-dark: #ffb73d;
+  --ios-red: #ff453a;
+  --ios-red-dark: #ff6961;
+  --ios-gray: #98989d;
+  --ios-gray-dark: #aeaeb2;
+  --ios-bg: #000000;
+  --ios-card: #1c1c1e;
+  --ios-border: #38383a;
+  --ios-border-strong: #48484a;
+  --ios-text: #f2f2f7;
+  --ios-text-secondary: #aeaeb2;
+  --ios-text-tertiary: #8e8e93;
+  --ios-surface2: #232326;
+  --ios-hover-bg: #232326;
+  --ios-selected-bg: #163a5c;
+  --ios-postal-bg: #163a5c;
+  --ios-postal-text: #7fb2ff;
+  --ios-notice-bg: #3a2e10;
+  --ios-notice-border: #5c4415;
+  --ios-notice-text: #ffcf6b;
+  --ios-btn-white-bg: rgba(255,255,255,0.1);
+  --ios-btn-white-bg-hover: rgba(255,255,255,0.16);
+  --ios-header-bg: rgba(28,28,30,0.85);
+  --ios-overlay-bg: rgba(0,0,0,0.6);
+  --ios-shadow-sm: rgba(0,0,0,0.3);
+  --ios-segment-bg: #2c2c2e;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --ios-blue: #0a84ff;
+    --ios-blue-dark: #409cff;
+    --ios-green: #30d158;
+    --ios-green-dark: #63e07a;
+    --ios-orange: #ff9f0a;
+    --ios-orange-dark: #ffb73d;
+    --ios-red: #ff453a;
+    --ios-red-dark: #ff6961;
+    --ios-gray: #98989d;
+    --ios-gray-dark: #aeaeb2;
+    --ios-bg: #000000;
+    --ios-card: #1c1c1e;
+    --ios-border: #38383a;
+    --ios-border-strong: #48484a;
+    --ios-text: #f2f2f7;
+    --ios-text-secondary: #aeaeb2;
+    --ios-text-tertiary: #8e8e93;
+    --ios-surface2: #232326;
+    --ios-hover-bg: #232326;
+    --ios-selected-bg: #163a5c;
+    --ios-postal-bg: #163a5c;
+    --ios-postal-text: #7fb2ff;
+    --ios-notice-bg: #3a2e10;
+    --ios-notice-border: #5c4415;
+    --ios-notice-text: #ffcf6b;
+    --ios-btn-white-bg: rgba(255,255,255,0.1);
+    --ios-btn-white-bg-hover: rgba(255,255,255,0.16);
+    --ios-header-bg: rgba(28,28,30,0.85);
+    --ios-overlay-bg: rgba(0,0,0,0.6);
+    --ios-shadow-sm: rgba(0,0,0,0.3);
+    --ios-segment-bg: #2c2c2e;
+  }
+}
+html { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
+body { transition: background 0.2s, color 0.2s; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 body {
-  font-family: 'Yu Gothic', 'Hiragino Sans', 'MS PGothic', sans-serif;
-  background: #f0f2f5;
-  color: #222;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  background: var(--ios-bg);
+  color: var(--ios-text);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ===== Header ===== */
 .app-header {
-  background: #1a3a6c;
-  color: white;
-  padding: 10px 20px;
+  background: var(--ios-header-bg);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  color: var(--ios-text);
+  padding: 12px 20px;
   display: flex;
   align-items: center;
   gap: 16px;
   position: sticky;
   top: 0;
   z-index: 200;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  border-bottom: 1px solid var(--ios-border);
   flex-wrap: wrap;
 }
-.app-title { font-size: 1rem; font-weight: 700; white-space: nowrap; }
+.app-title { font-size: 1.05rem; font-weight: 700; white-space: nowrap; letter-spacing: -0.01em; }
 .header-fields { display: flex; gap: 8px; align-items: center; flex: 1; flex-wrap: wrap; }
-.header-fields label { font-size: 0.78rem; color: #aabbd4; white-space: nowrap; }
+.header-fields label { font-size: 0.78rem; color: var(--ios-text-tertiary); white-space: nowrap; font-weight: 600; }
 .header-fields input {
-  padding: 4px 8px;
-  border: 1px solid #4a6aa0;
-  border-radius: 4px;
-  background: #2a4a7c;
-  color: white;
+  padding: 6px 10px;
+  border: 1px solid var(--ios-border);
+  border-radius: 8px;
+  background: var(--ios-bg);
+  color: var(--ios-text);
   font-size: 0.88rem;
   font-family: inherit;
   width: 70px;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .header-fields input.wide { width: 130px; }
-.header-fields input::placeholder { color: #7890b0; }
-.header-fields input:focus { outline: none; border-color: #7aabee; }
-.header-buttons { display: flex; gap: 6px; flex-shrink: 0; }
+.header-fields input::placeholder { color: var(--ios-text-tertiary); }
+.header-fields input:focus { outline: none; border-color: var(--ios-blue); box-shadow: 0 0 0 3px rgba(0,122,255,0.15); }
+.header-buttons { display: flex; gap: 8px; flex-shrink: 0; }
 
 /* ===== Buttons ===== */
 .btn {
-  padding: 6px 13px;
-  border-radius: 5px;
+  padding: 7px 16px;
+  border-radius: 980px;
   border: none;
   cursor: pointer;
   font-size: 0.83rem;
   font-family: inherit;
   font-weight: 600;
-  transition: all 0.15s;
+  transition: transform 0.1s, opacity 0.15s, background 0.15s;
   white-space: nowrap;
 }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-blue   { background: #2563eb; color: #fff; }
-.btn-blue:hover:not(:disabled) { background: #1d4ed8; }
-.btn-green  { background: #16a34a; color: #fff; }
-.btn-green:hover:not(:disabled) { background: #15803d; }
-.btn-amber  { background: #d97706; color: #fff; }
-.btn-amber:hover:not(:disabled) { background: #b45309; }
-.btn-red    { background: #dc2626; color: #fff; }
-.btn-red:hover:not(:disabled) { background: #b91c1c; }
-.btn-gray   { background: #6b7280; color: #fff; }
-.btn-gray:hover:not(:disabled) { background: #4b5563; }
-.btn-white  { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
-.btn-white:hover { background: rgba(255,255,255,0.25); }
-.btn-sm { padding: 3px 9px; font-size: 0.78rem; }
-.btn-xs { padding: 2px 6px; font-size: 0.74rem; }
+.btn:active:not(:disabled) { transform: scale(0.96); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-blue   { background: var(--ios-blue); color: #fff; }
+.btn-blue:hover:not(:disabled) { background: var(--ios-blue-dark); }
+.btn-green  { background: var(--ios-green); color: #fff; }
+.btn-green:hover:not(:disabled) { background: var(--ios-green-dark); }
+.btn-amber  { background: var(--ios-orange); color: #fff; }
+.btn-amber:hover:not(:disabled) { background: var(--ios-orange-dark); }
+.btn-red    { background: var(--ios-red); color: #fff; }
+.btn-red:hover:not(:disabled) { background: var(--ios-red-dark); }
+.btn-gray   { background: var(--ios-gray); color: #fff; }
+.btn-gray:hover:not(:disabled) { background: var(--ios-gray-dark); }
+.btn-white  { background: var(--ios-btn-white-bg); color: var(--ios-text); border: 1px solid var(--ios-border); }
+.btn-white:hover { background: var(--ios-btn-white-bg-hover); }
+.btn-sm { padding: 4px 11px; font-size: 0.78rem; }
+.btn-xs { padding: 3px 9px; font-size: 0.74rem; }
 
-/* ===== Tabs ===== */
+/* ===== Tabs (segmented control) ===== */
 .tab-bar {
-  display: flex;
-  background: #fff;
-  border-bottom: 2px solid #1a3a6c;
-  padding: 0 16px;
+  display: inline-flex;
+  background: var(--ios-segment-bg);
+  border-bottom: none;
+  padding: 3px;
+  border-radius: 10px;
+  margin: 14px 16px 0;
+  gap: 2px;
 }
 .tab-btn {
-  padding: 9px 22px;
+  padding: 7px 26px;
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.87rem;
   font-family: inherit;
-  color: #6b7280;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
+  color: var(--ios-text-secondary);
+  border-bottom: none;
+  border-radius: 8px;
+  margin-bottom: 0;
   transition: all 0.15s;
   font-weight: 600;
 }
-.tab-btn.active { color: #1a3a6c; border-bottom-color: #1a3a6c; }
-.tab-btn:hover:not(.active) { color: #374151; background: #f9fafb; }
+.tab-btn.active { color: var(--ios-text); background: var(--ios-card); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+.tab-btn:hover:not(.active) { color: var(--ios-text); }
 
 /* ===== Tab panels ===== */
-.tab-panel { display: none; padding: 14px 16px; }
+.tab-panel { display: none; padding: 16px; }
 .tab-panel.active { display: block; }
 
 /* ===== Toolbar ===== */
 .toolbar {
   display: flex;
-  gap: 5px;
-  margin-bottom: 10px;
+  gap: 6px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
   align-items: center;
 }
@@ -112,122 +226,138 @@ body {
 
 /* ===== Data tables ===== */
 .table-wrap {
-  border: 1px solid #d1d5db;
-  border-radius: 7px;
+  border: 1px solid var(--ios-border);
+  border-radius: 12px;
   overflow: hidden;
   overflow-x: auto;
-  background: white;
+  background: var(--ios-card);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.86rem;
+  font-size: 0.88rem;
 }
 .data-table th {
-  background: #1e3a5f;
-  color: #fff;
-  padding: 8px 10px;
+  background: var(--ios-surface2);
+  color: var(--ios-text-tertiary);
+  padding: 9px 12px;
   text-align: left;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
-  font-size: 0.82rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--ios-border);
 }
 .data-table td {
-  padding: 6px 10px;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--ios-border);
   vertical-align: middle;
 }
-.data-table tbody tr:hover td { background: #f0f7ff; }
-.data-table tbody tr.selected td { background: #dbeafe; }
-.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: var(--ios-hover-bg); }
+.data-table tbody tr.selected td { background: var(--ios-selected-bg); }
+.data-table .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ios-text); }
 .data-table .act { text-align: center; white-space: nowrap; }
-.empty-row td { color: #9ca3af; text-align: center; padding: 18px; font-style: italic; }
+.row-menu-btn {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--ios-text-tertiary);
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+.row-menu-btn:hover { background: var(--ios-hover-bg); color: var(--ios-text); }
+.row-menu-btn:active { background: var(--ios-selected-bg); }
+.empty-row td { color: var(--ios-text-tertiary); text-align: center; padding: 22px; font-style: normal; }
 
 /* ===== Two-panel ===== */
 .two-panel {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 16px;
 }
 @media (max-width: 800px) { .two-panel { grid-template-columns: 1fr; } }
 .panel-card {
-  background: white;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  background: var(--ios-card);
+  border: 1px solid var(--ios-border);
+  border-radius: 14px;
   overflow: hidden;
+  box-shadow: 0 1px 3px var(--ios-shadow-sm);
 }
 .panel-head {
-  background: #1e3a5f;
-  color: white;
-  padding: 8px 12px;
+  background: var(--ios-card);
+  color: var(--ios-text);
+  padding: 12px 14px;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   display: flex;
   align-items: center;
   gap: 8px;
+  border-bottom: 1px solid var(--ios-border);
 }
 .panel-head .btn { margin-left: auto; }
-.panel-toolbar {
-  padding: 6px 8px;
-  background: #f3f4f6;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
 .total-row {
-  background: #eff6ff;
-  border-top: 2px solid #1a3a6c;
-  padding: 7px 12px;
+  background: var(--ios-surface2);
+  border-top: 1px solid var(--ios-border);
+  padding: 10px 14px;
   display: flex;
   justify-content: space-between;
   font-weight: 700;
-  font-size: 0.9rem;
-  color: #1a3a6c;
+  font-size: 0.92rem;
+  color: var(--ios-text);
 }
+.total-row span:last-child { color: var(--ios-blue); font-variant-numeric: tabular-nums; }
 
 /* ===== Modal ===== */
 .overlay {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: var(--ios-overlay-bg);
   display: flex; align-items: center; justify-content: center;
   z-index: 500;
 }
 .overlay.hidden { display: none; }
 .modal {
-  background: white;
-  border-radius: 10px;
+  background: var(--ios-card);
+  border-radius: 18px;
   padding: 22px 24px;
   width: 90%;
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
 }
 .modal-title {
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 700;
-  color: #1a3a6c;
+  color: var(--ios-text);
   margin-bottom: 16px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ios-border);
 }
 .fg { margin-bottom: 12px; }
-.fg label { display: block; font-size: 0.8rem; color: #374151; font-weight: 600; margin-bottom: 4px; }
+.fg label { display: block; font-size: 0.8rem; color: var(--ios-text-secondary); font-weight: 600; margin-bottom: 5px; }
 .fg input, .fg select {
   width: 100%;
-  padding: 6px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 5px;
+  padding: 8px 11px;
+  border: 1px solid var(--ios-border);
+  border-radius: 10px;
+  background: var(--ios-surface2);
+  color: var(--ios-text);
   font-size: 0.88rem;
   font-family: inherit;
-  transition: border 0.15s;
+  transition: border 0.15s, box-shadow 0.15s;
 }
-.fg input:focus, .fg select:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
+.fg input:focus, .fg select:focus { outline: none; border-color: var(--ios-blue); box-shadow: 0 0 0 3px rgba(0,122,255,0.15); background: var(--ios-card); }
 .fg.row { display: flex; gap: 10px; }
 .fg.row > * { flex: 1; }
 .fg.shrink { flex: 0 0 auto !important; }
-.divider { border: none; border-top: 1px solid #e5e7eb; margin: 14px 0; }
+.divider { border: none; border-top: 1px solid var(--ios-border); margin: 14px 0; }
 .radio-row { display: flex; gap: 16px; }
 .radio-row label { display: flex; align-items: center; gap: 5px; font-weight: normal; cursor: pointer; }
 .modal-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
@@ -235,52 +365,53 @@ body {
 /* ===== Drag & Drop ===== */
 tr[draggable="true"] { cursor: grab; }
 tr[draggable="true"]:active { cursor: grabbing; }
-tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
+tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
 
 /* ===== Settings tabs ===== */
 .stab-btn {
-  padding: 7px 16px; border: none; background: none; cursor: pointer;
-  font-size: 0.85rem; font-family: inherit; color: #6b7280;
+  padding: 8px 16px; border: none; background: none; cursor: pointer;
+  font-size: 0.85rem; font-family: inherit; color: var(--ios-text-tertiary);
   border-bottom: 2px solid transparent; font-weight: 600; transition: all 0.15s;
 }
-.stab-btn.stab-active { color: #1a3a6c; border-bottom-color: #1a3a6c; }
-.stab-btn:hover:not(.stab-active) { color: #374151; background: #f9fafb; }
-.prst-item { display:flex; align-items:center; gap:6px; padding:5px 4px; border-bottom:1px solid #f3f4f6; font-size:0.85rem; }
+.stab-btn.stab-active { color: var(--ios-blue); border-bottom-color: var(--ios-blue); }
+.stab-btn:hover:not(.stab-active) { color: var(--ios-text); background: var(--ios-surface2); }
+.prst-item { display:flex; align-items:center; gap:6px; padding:7px 4px; border-bottom:1px solid var(--ios-border); font-size:0.85rem; }
 .prst-item:last-child { border-bottom:none; }
 
 /* ===== Inline amount input ===== */
 .inline-amt {
   width: 100%; text-align: right; border: none; background: transparent;
   font-size: inherit; font-family: inherit; color: inherit; outline: none;
-  cursor: text; padding: 0;
+  cursor: text; padding: 4px 2px; font-weight: 600; font-variant-numeric: tabular-nums;
+  border-radius: 6px;
   -moz-appearance: textfield;
 }
 .inline-amt::-webkit-inner-spin-button,
 .inline-amt::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-.inline-amt:focus { background: #fff8e1; border-radius: 3px; }
+.inline-amt:focus { background: var(--ios-selected-bg); }
 .inline-amt-cell { padding: 2px 6px !important; }
-.hdr-sep { width: 1px; background: #4a6aa0; align-self: stretch; margin: 4px 2px; }
+.hdr-sep { width: 1px; background: var(--ios-border-strong); align-self: stretch; margin: 4px 2px; }
 
 /* ===== Footer ===== */
 .app-footer {
-  text-align: right; font-size: 0.72rem; color: #9ca3af;
-  padding: 8px 20px; margin-top: 10px;
+  text-align: right; font-size: 0.72rem; color: var(--ios-text-tertiary);
+  padding: 10px 20px; margin-top: 12px;
 }
 
 /* ===== Notices ===== */
 .notice {
-  background: #fef9c3;
-  border: 1px solid #fde047;
-  border-radius: 5px;
-  padding: 8px 12px;
+  background: var(--ios-notice-bg);
+  border: 1px solid var(--ios-notice-border);
+  border-radius: 10px;
+  padding: 10px 14px;
   font-size: 0.8rem;
-  color: #713f12;
-  margin-bottom: 10px;
+  color: var(--ios-notice-text);
+  margin-bottom: 12px;
 }
 
 /* ===== Keyboard nav focus ===== */
-.table-wrap:focus { outline: 2px solid #2563eb; outline-offset: -2px; }
-.table-wrap:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
+.table-wrap:focus { outline: 2px solid var(--ios-blue); outline-offset: -2px; }
+.table-wrap:focus-visible { outline: 2px solid var(--ios-blue); outline-offset: -2px; }
 </style>
 </head>
 <body>
@@ -298,10 +429,10 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
     <button class="btn btn-white" onclick="saveJSON()">保存</button>
     <label class="btn btn-white" style="cursor:pointer">読込<input type="file" accept=".json" onchange="loadJSON(event)" style="display:none"></label>
     <div class="hdr-sep"></div>
-    <button class="btn btn-green" onclick="exportExcel()">Excel</button>
-    <div class="hdr-sep"></div>
     <button class="btn btn-white" onclick="openSettings()">設定</button>
     <button class="btn btn-red" onclick="resetAll()">リセット</button>
+    <div class="hdr-sep"></div>
+    <button class="btn btn-white" id="theme-toggle-btn" onclick="toggleTheme()" title="ダーク/ライト切替">🌙</button>
   </div>
 </div>
 
@@ -315,10 +446,6 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
 <div id="tab-meisai" class="tab-panel">
   <div class="toolbar">
     <button class="btn btn-blue" onclick="openVendorModal()">＋ 追加</button>
-    <button class="btn btn-amber" onclick="editSelVendor()">編集</button>
-    <button class="btn btn-red" onclick="delSelVendor()">削除</button>
-    <button class="btn btn-gray btn-sm" onclick="moveVendor(-1)" title="上に移動">↑</button>
-    <button class="btn btn-gray btn-sm" onclick="moveVendor(1)"  title="下に移動">↓</button>
   </div>
   <div class="table-wrap" id="vendor-table-wrap" tabindex="0">
     <table class="data-table">
@@ -328,9 +455,9 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
           <th>会社名</th>
           <th>登録番号 / 銀行情報</th>
           <th style="width:165px">手数料引後（手数料）</th>
-          <th style="width:105px">合計金額</th>
+          <th class="num" style="width:105px">合計金額</th>
           <th style="width:80px">備考</th>
-          <th style="width:100px">操作</th>
+          <th style="width:40px">操作</th>
         </tr>
       </thead>
       <tbody id="vendor-tbody"></tbody>
@@ -348,22 +475,15 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
 
     <!-- 現金支払い -->
     <div class="panel-card">
-      <div class="panel-head">現金支払い</div>
-      <div class="panel-toolbar">
-        <button class="btn btn-blue btn-sm" onclick="openEntryModal('cash')">＋</button>
-        <button class="btn btn-amber btn-sm" onclick="editSelEntry('cash')">編集</button>
-        <button class="btn btn-red btn-sm" onclick="delSelEntry('cash')">削除</button>
-        <button class="btn btn-gray btn-xs" onclick="moveEntry('cash',-1)">↑</button>
-        <button class="btn btn-gray btn-xs" onclick="moveEntry('cash',1)">↓</button>
-      </div>
-      <div class="table-wrap" id="cash-table-wrap" tabindex="0" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb">
+      <div class="panel-head">現金支払い<button class="btn btn-blue btn-sm" onclick="openEntryModal('cash')">＋</button></div>
+      <div class="table-wrap" id="cash-table-wrap" tabindex="0" style="border-radius:0;border:none;border-bottom:1px solid var(--ios-border)">
         <table class="data-table">
           <thead>
             <tr>
               <th>支払先名</th>
-              <th style="width:100px">金額</th>
-              <th style="width:80px">備考</th>
-              <th style="width:70px">操作</th>
+              <th class="num" style="width:100px">金額</th>
+              <th style="width:100px">備考</th>
+              <th style="width:40px">操作</th>
             </tr>
           </thead>
           <tbody id="cash-tbody"></tbody>
@@ -377,30 +497,29 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
 
     <!-- 振込支払い -->
     <div class="panel-card">
-      <div class="panel-head">振込支払い</div>
-      <div class="panel-toolbar">
-        <button class="btn btn-blue btn-sm" onclick="openEntryModal('transfer')">＋</button>
-        <button class="btn btn-amber btn-sm" onclick="editSelEntry('transfer')">編集</button>
-        <button class="btn btn-red btn-sm" onclick="delSelEntry('transfer')">削除</button>
-        <button class="btn btn-gray btn-xs" onclick="moveEntry('transfer',-1)">↑</button>
-        <button class="btn btn-gray btn-xs" onclick="moveEntry('transfer',1)">↓</button>
-      </div>
-      <div class="table-wrap" id="transfer-table-wrap" tabindex="0" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb">
+      <div class="panel-head">振込支払い<button class="btn btn-blue btn-sm" onclick="openEntryModal('transfer')">＋</button></div>
+      <div class="table-wrap" id="transfer-table-wrap" tabindex="0" style="border-radius:0;border:none;border-bottom:1px solid var(--ios-border)">
         <table class="data-table">
           <thead>
             <tr>
               <th>支払先名</th>
-              <th style="width:100px">金額</th>
-              <th style="width:80px">備考</th>
-              <th style="width:70px">操作</th>
+              <th class="num" style="width:100px">金額</th>
+              <th style="width:100px">備考</th>
+              <th style="width:40px">操作</th>
             </tr>
           </thead>
           <tbody id="transfer-tbody"></tbody>
         </table>
       </div>
-      <div class="total-row">
-        <span>振込合計</span>
-        <span id="transfer-total">¥ 0</span>
+      <div class="total-row" style="flex-direction:column;align-items:stretch;gap:5px">
+        <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--ios-postal-text)">
+          <span>郵便局合計</span>
+          <span id="postal-total">¥ 0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-top:1px dashed var(--ios-border-strong);padding-top:5px">
+          <span>振込合計</span>
+          <span id="transfer-total">¥ 0</span>
+        </div>
       </div>
     </div>
 
@@ -465,7 +584,7 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
     <div class="fg row" style="align-items:flex-end">
       <div class="fg shrink" style="margin:0;width:130px">
         <label>振込手数料（円）</label>
-        <input id="v-fee" type="number" min="0" value="440">
+        <input id="v-fee" type="text" inputmode="numeric" value="440" oninput="formatCommaInput(this)">
       </div>
       <div class="fg" style="margin:0;display:flex;align-items:center;padding-bottom:4px">
         <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer">
@@ -478,9 +597,9 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
     <div id="v-amount-wrap">
       <div class="fg" style="margin-top:8px">
         <label>合計金額（月末会計用・円）</label>
-        <input id="v-amount" type="number" min="0" value="0">
+        <input id="v-amount" type="text" inputmode="numeric" value="0" oninput="formatCommaInput(this)">
       </div>
-      <div style="font-size:0.78rem;color:#6b7280;margin:-4px 0 10px;line-height:1.5">
+      <div style="font-size:0.78rem;color:var(--ios-text-secondary);margin:-4px 0 10px;line-height:1.5">
         ※ 園負担でない場合：手数料込の合計を入力　月末明細には「合計 − 手数料」が自動表示されます。
       </div>
     </div>
@@ -489,9 +608,26 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
       <input id="v-notes" type="text" placeholder="（任意）">
     </div>
 
+    <div class="modal-btns" style="justify-content:space-between">
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-red" id="v-delete-btn" onclick="deleteCurrentVendor()">削除</button>
+        <button class="btn btn-gray" id="v-register-btn" onclick="registerCurrentVendorToMaster()">情報をマスターに登録</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-gray" onclick="closeVendorModal()">キャンセル</button>
+        <button class="btn btn-blue" id="v-save-btn" onclick="saveVendor()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: 確認（はい/いいえ）===== -->
+<div id="confirm-overlay" class="overlay hidden" style="z-index:600">
+  <div class="modal" style="max-width:340px;padding:20px 22px">
+    <div id="confirm-message" style="font-size:0.9rem;color:#1f2937;margin-bottom:18px;line-height:1.6"></div>
     <div class="modal-btns">
-      <button class="btn btn-gray" onclick="closeVendorModal()">キャンセル</button>
-      <button class="btn btn-blue" id="v-save-btn" onclick="saveVendor()">保存</button>
+      <button class="btn btn-gray" id="confirm-no-btn">いいえ</button>
+      <button class="btn btn-blue" id="confirm-yes-btn">はい</button>
     </div>
   </div>
 </div>
@@ -506,7 +642,7 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
     </div>
     <div class="fg">
       <label>金額（円）</label>
-      <input id="e-amount" type="number" min="0" value="0">
+      <input id="e-amount" type="text" inputmode="numeric" value="0" oninput="formatCommaInput(this)">
     </div>
     <div class="fg">
       <label>備考</label>
@@ -518,9 +654,12 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
         <span>〒 郵便局セクションに追加</span>
       </label>
     </div>
-    <div class="modal-btns">
-      <button class="btn btn-gray" onclick="closeEntryModal()">キャンセル</button>
-      <button class="btn btn-blue" onclick="saveEntry()">保存</button>
+    <div class="modal-btns" style="justify-content:space-between">
+      <button class="btn btn-red" id="e-delete-btn" onclick="deleteCurrentEntry()">削除</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-gray" onclick="closeEntryModal()">キャンセル</button>
+        <button class="btn btn-blue" onclick="saveEntry()">保存</button>
+      </div>
     </div>
   </div>
 </div>
@@ -529,8 +668,8 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
 <div id="settings-overlay" class="overlay hidden" style="z-index:490">
   <div class="modal" style="max-width:560px">
     <div class="modal-title">設定 — 会社マスターデータの管理</div>
-    <p style="font-size:0.78rem;color:#6b7280;margin-bottom:10px">ここで登録した内容は次回以降も保持されます。「今月に追加」で今月の一覧に反映します。</p>
-    <div style="display:flex;border-bottom:2px solid #e5e7eb;margin-bottom:14px">
+    <p style="font-size:0.78rem;color:var(--ios-text-secondary);margin-bottom:10px">ここで登録した内容は次回以降も保持されます。「今月に追加」で今月の一覧に反映します。</p>
+    <div style="display:flex;border-bottom:2px solid var(--ios-border);margin-bottom:14px">
       <button class="stab-btn stab-active" id="stab-btn-vendor" onclick="switchStab('vendor')">月末明細</button>
       <button class="stab-btn" id="stab-btn-cash" onclick="switchStab('cash')">現金支払い</button>
       <button class="stab-btn" id="stab-btn-transfer" onclick="switchStab('transfer')">振込支払い</button>
@@ -541,26 +680,26 @@ tr.drag-over { outline: 2px solid #2563eb; outline-offset: -1px; }
       <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
         <button class="btn btn-blue btn-sm" onclick="openVendorModal(undefined, true)">＋ 追加</button>
       </div>
-      <div id="settings-list-vendor" style="max-height:260px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:5px;padding:4px 8px"></div>
+      <div id="settings-list-vendor" style="max-height:260px;overflow-y:auto;border:1px solid var(--ios-border);border-radius:5px;padding:4px 8px"></div>
     </div>
 
     <!-- 現金マスター -->
     <div id="stab-panel-cash" style="display:none">
-      <div id="settings-list-cash" style="max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:5px;padding:4px 8px;margin-bottom:10px"></div>
+      <div id="settings-list-cash" style="max-height:200px;overflow-y:auto;border:1px solid var(--ios-border);border-radius:5px;padding:4px 8px;margin-bottom:10px"></div>
       <div style="display:flex;gap:6px">
-        <input id="master-cash-name" type="text" placeholder="支払先名" style="flex:1;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-family:inherit;font-size:0.88rem">
-        <input id="master-cash-note" type="text" placeholder="備考" style="width:90px;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-family:inherit;font-size:0.88rem">
+        <input id="master-cash-name" type="text" placeholder="支払先名" style="flex:1;padding:5px 8px;border:1px solid var(--ios-border);border-radius:4px;font-family:inherit;font-size:0.88rem">
+        <input id="master-cash-note" type="text" placeholder="備考" style="width:90px;padding:5px 8px;border:1px solid var(--ios-border);border-radius:4px;font-family:inherit;font-size:0.88rem">
         <button class="btn btn-blue btn-sm" onclick="addMasterEntry('cash')">追加</button>
       </div>
     </div>
 
     <!-- 振込マスター -->
     <div id="stab-panel-transfer" style="display:none">
-      <div id="settings-list-transfer" style="max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:5px;padding:4px 8px;margin-bottom:10px"></div>
+      <div id="settings-list-transfer" style="max-height:200px;overflow-y:auto;border:1px solid var(--ios-border);border-radius:5px;padding:4px 8px;margin-bottom:10px"></div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <input id="master-transfer-name" type="text" placeholder="支払先名" style="flex:1;min-width:100px;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-family:inherit;font-size:0.88rem">
-        <input id="master-transfer-note" type="text" placeholder="備考" style="width:80px;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-family:inherit;font-size:0.88rem">
-        <label style="display:flex;align-items:center;gap:4px;font-size:0.82rem;white-space:nowrap;cursor:pointer;color:#1e3a5f">
+        <input id="master-transfer-name" type="text" placeholder="支払先名" style="flex:1;min-width:100px;padding:5px 8px;border:1px solid var(--ios-border);border-radius:4px;font-family:inherit;font-size:0.88rem">
+        <input id="master-transfer-note" type="text" placeholder="備考" style="width:80px;padding:5px 8px;border:1px solid var(--ios-border);border-radius:4px;font-family:inherit;font-size:0.88rem">
+        <label style="display:flex;align-items:center;gap:4px;font-size:0.82rem;white-space:nowrap;cursor:pointer;color:var(--ios-postal-text)">
           <input id="master-transfer-postal" type="checkbox"> 〒郵便局
         </label>
         <button class="btn btn-blue btn-sm" onclick="addMasterEntry('transfer')">追加</button>
@@ -715,6 +854,16 @@ function fmt(n) {
   return (n || 0).toLocaleString('ja-JP');
 }
 
+// 入力欄にカンマ区切り表示を反映（例: 1000 → 1,000）
+function formatCommaInput(el) {
+  const digits = el.value.replace(/[^\d]/g, '');
+  el.value = digits ? Number(digits).toLocaleString('ja-JP') : '';
+}
+// カンマ区切り表示の入力欄から数値を取り出す
+function parseCommaNum(val) {
+  return parseInt(String(val).replace(/[^\d]/g, ''), 10) || 0;
+}
+
 // 月末明細に印字する金額文字列を返す
 // 園負担でない場合：入力合計金額から手数料を引いた額が明細に載る
 // 例: 合計211,365・手数料440 → "¥210,925（440）"
@@ -763,10 +912,9 @@ function renderVendors() {
       <td style="font-size:0.82rem">${info}</td>
       <td style="font-size:0.82rem">${meisai}</td>
       <td class="num">${v.amount > 0 ? '¥ ' + fmt(v.amount) : '0'}</td>
-      <td style="font-size:0.82rem;color:#6b7280"></td>
+      <td style="font-size:0.82rem;color:var(--ios-text-secondary)"></td>
       <td class="act">
-        <button class="btn btn-amber btn-xs" onclick="openVendorModal(${i});event.stopPropagation()">編集</button>
-        <button class="btn btn-red btn-xs" onclick="deleteVendor(${i});event.stopPropagation()">削除</button>
+        <button class="row-menu-btn" onclick="openVendorModal(${i});event.stopPropagation()" title="編集・削除">⋮</button>
       </td>
     </tr>`;
   }).join('');
@@ -774,10 +922,19 @@ function renderVendors() {
 
 function inlineEntryAmountSave(kind, idx, val) {
   const list = kind === 'cash' ? S.cash : S.transfer;
-  list[idx].amount = parseInt(val) || 0;
+  list[idx].amount = parseCommaNum(val);
   const totId = kind === 'cash' ? 'cash-total' : 'transfer-total';
   const total = list.filter(e => !e.isHeader).reduce((s, e) => s + (e.amount || 0), 0);
   document.getElementById(totId).textContent = '¥ ' + fmt(total);
+  if (kind === 'transfer') {
+    document.getElementById('postal-total').textContent = '¥ ' + fmt(postalTotal());
+  }
+}
+// 郵便局ヘッダー以降のエントリーだけの合計
+function postalTotal() {
+  const hIdx = S.transfer.findIndex(e => e.isHeader);
+  if (hIdx < 0) return 0;
+  return S.transfer.slice(hIdx + 1).filter(e => !e.isHeader).reduce((s, e) => s + (e.amount || 0), 0);
 }
 function resetAll() {
   if (!confirm('現在の入力データをすべてリセットします。\nこの操作は元に戻せません。よろしいですか？')) return;
@@ -785,30 +942,6 @@ function resetAll() {
   renderVendors();
   renderTable('cash');
   renderTable('transfer');
-}
-
-function editSelVendor() {
-  if (selV === null) { alert('編集する項目を選択してください'); return; }
-  openVendorModal(selV);
-}
-function delSelVendor() {
-  if (selV === null) { alert('削除する項目を選択してください'); return; }
-  deleteVendor(selV);
-}
-function deleteVendor(idx) {
-  if (!confirm('削除しますか？')) return;
-  S.vendors.splice(idx, 1);
-  if (selV !== null && selV >= S.vendors.length) selV = S.vendors.length - 1;
-  if (!S.vendors.length) selV = null;
-  renderVendors();
-}
-function moveVendor(dir) {
-  if (selV === null) return;
-  const ni = selV + dir;
-  if (ni < 0 || ni >= S.vendors.length) return;
-  [S.vendors[selV], S.vendors[ni]] = [S.vendors[ni], S.vendors[selV]];
-  selV = ni;
-  renderVendors();
 }
 
 // ============================================================
@@ -823,6 +956,8 @@ function openVendorModal(idx, masterMode) {
   document.getElementById('vendor-modal-title').textContent =
     vendorMasterMode ? (v ? 'マスター編集' : 'マスターに追加') : (v ? '業者情報を編集' : '業者情報を追加');
   document.getElementById('v-amount-wrap').style.display = vendorMasterMode ? 'none' : '';
+  document.getElementById('v-register-btn').style.display = vendorMasterMode ? 'none' : '';
+  document.getElementById('v-delete-btn').style.display = (!vendorMasterMode && editVIdx !== null) ? '' : 'none';
   document.getElementById('v-save-btn').textContent = vendorMasterMode ? 'マスターに保存' : '保存';
   document.getElementById('v-name').value   = v ? v.name : '';
   document.getElementById('v-regnum').value = v ? v.regNum : '';
@@ -830,8 +965,8 @@ function openVendorModal(idx, masterMode) {
   document.getElementById('v-branch').value = v ? v.branch : '';
   document.getElementById('v-actype').value = v ? v.acType : '普通';
   document.getElementById('v-acnum').value  = v ? v.acNum : '';
-  document.getElementById('v-amount').value     = v ? v.amount : 0;
-  document.getElementById('v-fee').value        = v ? v.fee : 440;
+  document.getElementById('v-amount').value     = fmt(v ? v.amount : 0);
+  document.getElementById('v-fee').value        = fmt(v ? v.fee : 440);
   document.getElementById('v-enofutan').checked = v ? !!v.enofutan : false;
   document.getElementById('v-notes').value      = v ? (v.notes || '') : '';
 
@@ -864,7 +999,7 @@ function saveVendor() {
     branch: document.getElementById('v-branch').value.trim(),
     acType: document.getElementById('v-actype').value,
     acNum:  document.getElementById('v-acnum').value.trim(),
-    fee:      parseInt(document.getElementById('v-fee').value) || 0,
+    fee:      parseCommaNum(document.getElementById('v-fee').value),
     enofutan: document.getElementById('v-enofutan').checked,
     notes:    document.getElementById('v-notes').value.trim(),
   };
@@ -877,7 +1012,7 @@ function saveVendor() {
     closeVendorModal();
     renderMasterList('vendor');
   } else {
-    const entry = { ...base, amount: parseInt(document.getElementById('v-amount').value) || 0 };
+    const entry = { ...base, amount: parseCommaNum(document.getElementById('v-amount').value) };
     const isNew = editVIdx === null;
     if (isNew) {
       S.vendors.push(entry);
@@ -888,12 +1023,64 @@ function saveVendor() {
     selV = S.vendors.indexOf(entry);
     closeVendorModal();
     renderVendors();
-    if (isNew && confirm('マスターに追加しますか？')) {
-      MASTER.vendors.push({ ...base });
-      MASTER.vendors.sort(vendorCmp);
-      saveMaster();
-    }
+    showConfirm('マスターに登録しますか？（口座番号などの情報を保存し、次回以降は入力不要になります）', () => {
+      registerVendorToMaster(base);
+    });
   }
+}
+
+// 編集ボックスから直接削除（業者）
+function deleteCurrentVendor() {
+  if (editVIdx === null || vendorMasterMode) return;
+  if (!confirm('この業者情報を削除しますか？')) return;
+  S.vendors.splice(editVIdx, 1);
+  if (selV !== null && selV >= S.vendors.length) selV = S.vendors.length - 1;
+  if (!S.vendors.length) selV = null;
+  closeVendorModal();
+  renderVendors();
+}
+
+// 業者情報（口座・登録番号など）をマスターへ登録・更新
+function registerVendorToMaster(base) {
+  const idx = MASTER.vendors.findIndex(v => v.name === base.name);
+  if (idx >= 0) MASTER.vendors[idx] = { ...base };
+  else MASTER.vendors.push({ ...base });
+  MASTER.vendors.sort(vendorCmp);
+  saveMaster();
+}
+// 保存前に、編集ボックス内から直接マスター登録する
+function registerCurrentVendorToMaster() {
+  const name = document.getElementById('v-name').value.trim();
+  if (!name) { alert('会社名を入力してください'); return; }
+  const base = {
+    name,
+    type:   document.querySelector('input[name="v-type"]:checked').value,
+    regNum: document.getElementById('v-regnum').value.trim(),
+    bank:   document.getElementById('v-bank').value.trim(),
+    branch: document.getElementById('v-branch').value.trim(),
+    acType: document.getElementById('v-actype').value,
+    acNum:  document.getElementById('v-acnum').value.trim(),
+    fee:      parseCommaNum(document.getElementById('v-fee').value),
+    enofutan: document.getElementById('v-enofutan').checked,
+    notes:    document.getElementById('v-notes').value.trim(),
+  };
+  registerVendorToMaster(base);
+  alert(`「${name}」の情報をマスターに登録しました。\n次回からは「今月に追加」だけで口座情報が入力されます。`);
+}
+
+// ボタン式の確認ダイアログ（はい/いいえ）
+function showConfirm(message, onYes, onNo) {
+  document.getElementById('confirm-message').textContent = message;
+  const overlay = document.getElementById('confirm-overlay');
+  overlay.classList.remove('hidden');
+  const yesBtn = document.getElementById('confirm-yes-btn');
+  const noBtn  = document.getElementById('confirm-no-btn');
+  const cleanup = () => {
+    overlay.classList.add('hidden');
+    yesBtn.onclick = null; noBtn.onclick = null;
+  };
+  yesBtn.onclick = () => { cleanup(); if (onYes) onYes(); };
+  noBtn.onclick  = () => { cleanup(); if (onNo) onNo(); };
 }
 
 // ============================================================
@@ -909,14 +1096,15 @@ function renderTable(kind) {
   if (!list.length) {
     tb.innerHTML = '<tr class="empty-row"><td colspan="4">-</td></tr>';
     document.getElementById(totId).textContent = '¥ 0';
+    if (kind === 'transfer') document.getElementById('postal-total').textContent = '¥ 0';
     return;
   }
   const sel = kind === 'cash' ? selC : selT;
   tb.innerHTML = list.map((e, i) => {
     if (e.isHeader) {
       // カテゴリー見出し行
-      return `<tr style="background:#dbeafe;pointer-events:none">
-        <td colspan="4" style="font-weight:700;font-size:0.82rem;color:#1e3a5f;padding:5px 10px;letter-spacing:0.05em">
+      return `<tr style="background:var(--ios-postal-bg);pointer-events:none">
+        <td colspan="4" style="font-weight:700;font-size:0.82rem;color:var(--ios-postal-text);padding:5px 10px;letter-spacing:0.05em">
           ${esc(e.name)}
         </td>
       </tr>`;
@@ -931,51 +1119,25 @@ function renderTable(kind) {
       ondrop="onDrop(event,'${kind}',${i})">
       <td>${esc(e.name)}</td>
       <td class="num inline-amt-cell" onclick="event.stopPropagation()">
-        <input type="number" min="0" value="${e.amount || ''}" placeholder="0" class="inline-amt"
+        <input type="text" inputmode="numeric" value="${e.amount ? fmt(e.amount) : ''}" placeholder="0" class="inline-amt"
+          oninput="formatCommaInput(this)"
           onfocus="${selRef}=${i};document.querySelectorAll('#${tbId} tr').forEach((r,j)=>r.classList.toggle('selected',j===${i}))"
           onblur="inlineEntryAmountSave('${kind}',${i},this.value)"
           onkeydown="if(event.key==='Enter'){inlineEntryAmountSave('${kind}',${i},this.value);this.blur();document.getElementById('${kind}-table-wrap').focus()}else if(event.key==='Escape'){this.blur();document.getElementById('${kind}-table-wrap').focus()}">
       </td>
-      <td>${esc(e.note)}</td>
+      <td style="white-space:nowrap">${esc(e.note)}</td>
       <td class="act">
-        <button class="btn btn-amber btn-xs" onclick="openEntryModal('${kind}',${i});event.stopPropagation()">編集</button>
-        <button class="btn btn-red btn-xs" onclick="deleteEntry('${kind}',${i});event.stopPropagation()">削除</button>
+        <button class="row-menu-btn" onclick="openEntryModal('${kind}',${i});event.stopPropagation()" title="編集・削除">⋮</button>
       </td>
     </tr>`;
   }).join('');
   const total = list.filter(e => !e.isHeader).reduce((s, e) => s + (e.amount || 0), 0);
   document.getElementById(totId).textContent = '¥ ' + fmt(total);
+  if (kind === 'transfer') {
+    document.getElementById('postal-total').textContent = '¥ ' + fmt(postalTotal());
+  }
 }
 
-function editSelEntry(kind) {
-  const idx = kind === 'cash' ? selC : selT;
-  if (idx === null) { alert('編集する項目を選択してください'); return; }
-  openEntryModal(kind, idx);
-}
-function delSelEntry(kind) {
-  const idx = kind === 'cash' ? selC : selT;
-  if (idx === null) { alert('削除する項目を選択してください'); return; }
-  deleteEntry(kind, idx);
-}
-function deleteEntry(kind, idx) {
-  if (!confirm('削除しますか？')) return;
-  const list = kind === 'cash' ? S.cash : S.transfer;
-  list.splice(idx, 1);
-  if (kind === 'cash') { if (selC !== null && selC >= list.length) selC = list.length - 1; }
-  else                 { if (selT !== null && selT >= list.length) selT = list.length - 1; }
-  if (!list.length) { if (kind === 'cash') selC = null; else selT = null; }
-  renderTable(kind);
-}
-function moveEntry(kind, dir) {
-  const list = kind === 'cash' ? S.cash : S.transfer;
-  const idx  = kind === 'cash' ? selC : selT;
-  if (idx === null) return;
-  const ni = idx + dir;
-  if (ni < 0 || ni >= list.length) return;
-  [list[idx], list[ni]] = [list[ni], list[idx]];
-  if (kind === 'cash') selC = ni; else selT = ni;
-  renderTable(kind);
-}
 
 // ============================================================
 // Entry modal
@@ -989,13 +1151,14 @@ function openEntryModal(kind, idx) {
 
   document.getElementById('entry-modal-title').textContent = `${kLabel}${e ? 'を編集' : 'を追加'}`;
   document.getElementById('e-name').value   = e ? e.name   : '';
-  document.getElementById('e-amount').value = e ? e.amount : 0;
+  document.getElementById('e-amount').value = fmt(e ? e.amount : 0);
   document.getElementById('e-note').value   = e ? e.note   : '';
 
   const postalWrap = document.getElementById('e-postal-wrap');
   const postalChk  = document.getElementById('e-postal');
   postalWrap.style.display = (kind === 'transfer' && !e) ? '' : 'none';
   postalChk.checked = false;
+  document.getElementById('e-delete-btn').style.display = (editEIdx !== null) ? '' : 'none';
 
   document.getElementById('entry-overlay').classList.remove('hidden');
   setTimeout(() => document.getElementById('e-name').focus(), 50);
@@ -1006,12 +1169,24 @@ function closeEntryModal() {
     setTimeout(() => document.getElementById(editEKind + '-table-wrap').focus(), 50);
   }
 }
+// 編集ボックスから直接削除（現金・振込エントリー）
+function deleteCurrentEntry() {
+  if (editEIdx === null) return;
+  if (!confirm('削除しますか？')) return;
+  const kind = editEKind;
+  const list = kind === 'cash' ? S.cash : S.transfer;
+  list.splice(editEIdx, 1);
+  if (kind === 'cash') { if (selC !== null && selC >= list.length) selC = list.length - 1; if (!list.length) selC = null; }
+  else                 { if (selT !== null && selT >= list.length) selT = list.length - 1; if (!list.length) selT = null; }
+  closeEntryModal();
+  renderTable(kind);
+}
 function saveEntry() {
   const name = document.getElementById('e-name').value.trim();
   if (!name) { alert('会社名を入力してください'); return; }
   const entry = {
     name,
-    amount: parseInt(document.getElementById('e-amount').value) || 0,
+    amount: parseCommaNum(document.getElementById('e-amount').value),
     note:   document.getElementById('e-note').value.trim(),
   };
   const list  = editEKind === 'cash' ? S.cash : S.transfer;
@@ -1172,7 +1347,7 @@ function renderMasterList(kind) {
   const list = kind === 'vendor' ? MASTER.vendors : MASTER[kind];
   const el = document.getElementById('settings-list-' + kind);
   if (!list || !list.length) {
-    el.innerHTML = '<div style="color:#9ca3af;font-size:0.82rem;padding:8px 0">まだ登録がありません</div>';
+    el.innerHTML = '<div style="color:var(--ios-text-tertiary);font-size:0.82rem;padding:8px 0">まだ登録がありません</div>';
     return;
   }
   if (kind === 'vendor') {
@@ -1181,7 +1356,7 @@ function renderMasterList(kind) {
         ? `${esc(v.bank||'')} ${esc(v.branch||'')} ${v.acType||''} ${esc(v.acNum||'')}`
         : (v.regNum ? `登録番号 ${esc(v.regNum)}` : '（番号未登録）');
       return `<div class="prst-item">
-        <span style="flex:1;min-width:0"><b>${esc(v.name)}</b><span style="font-size:0.78rem;color:#6b7280;margin-left:8px">${info}　手数料${v.fee||0}円${v.enofutan ? '　園負担' : ''}${v.notes ? '　' + esc(v.notes) : ''}</span></span>
+        <span style="flex:1;min-width:0"><b>${esc(v.name)}</b><span style="font-size:0.78rem;color:var(--ios-text-secondary);margin-left:8px">${info}　手数料${v.fee||0}円${v.enofutan ? '　園負担' : ''}${v.notes ? '　' + esc(v.notes) : ''}</span></span>
         <button class="btn btn-green btn-xs" onclick="masterVendorAdd(${i})">今月に追加</button>
         <button class="btn btn-amber btn-xs" onclick="openVendorModal(${i},true)">編集</button>
         <button class="btn btn-red btn-xs" onclick="deleteMasterEntry('vendor',${i})">削除</button>
@@ -1191,17 +1366,17 @@ function renderMasterList(kind) {
     const hIdx = list.findIndex(e => e.isHeader);
     el.innerHTML = list.map((e, i) => {
       if (e.isHeader) {
-        return `<div class="prst-item" style="background:#dbeafe;font-weight:700;color:#1e3a5f;font-size:0.82rem">
+        return `<div class="prst-item" style="background:var(--ios-postal-bg);font-weight:700;color:var(--ios-postal-text);font-size:0.82rem">
           <span style="flex:1">〒 郵便局（カテゴリ区切り）</span>
           <button class="btn btn-red btn-xs" onclick="deleteMasterEntry('${kind}',${i})">削除</button>
         </div>`;
       }
       const isPostal = hIdx >= 0 && i > hIdx;
       const badge = isPostal
-        ? `<span style="font-size:0.72rem;color:#1e3a5f;background:#dbeafe;padding:1px 5px;border-radius:3px;margin-right:4px">〒</span>`
-        : `<span style="font-size:0.72rem;color:#6b7280;background:#f3f4f6;padding:1px 5px;border-radius:3px;margin-right:4px">通常</span>`;
+        ? `<span style="font-size:0.72rem;color:var(--ios-postal-text);background:var(--ios-postal-bg);padding:1px 5px;border-radius:3px;margin-right:4px">〒</span>`
+        : `<span style="font-size:0.72rem;color:var(--ios-text-secondary);background:var(--ios-surface2);padding:1px 5px;border-radius:3px;margin-right:4px">通常</span>`;
       return `<div class="prst-item">
-        <span style="flex:1">${badge}${esc(e.name)}${e.note ? '　<span style="color:#6b7280;font-size:0.8rem">' + esc(e.note) + '</span>' : ''}</span>
+        <span style="flex:1">${badge}${esc(e.name)}${e.note ? '　<span style="color:var(--ios-text-secondary);font-size:0.8rem">' + esc(e.note) + '</span>' : ''}</span>
         <button class="btn btn-green btn-xs" onclick="masterEntryAdd('${kind}',${i})">今月に追加</button>
         <button class="btn btn-red btn-xs" onclick="deleteMasterEntry('${kind}',${i})">削除</button>
       </div>`;
@@ -1327,8 +1502,9 @@ function exportExcel() {
   for (let i = 0; i < trPad; i++) { d2.push(['', '', '']); d2meta.push('data'); }
   // 合計前に空行
   d2.push(['', '', '']); d2meta.push('blank');
-  // 振込合計
+  // 郵便局合計・振込合計
   const trTot2 = S.transfer.filter(e => !e.isHeader).reduce((s, e) => s + (e.amount || 0), 0);
+  d2.push(['郵便局合計', postalTotal(), '']); d2meta.push('total');
   d2.push(['振込合計', trTot2, '']); d2meta.push('total');
 
   const ws2 = XLSX.utils.aoa_to_sheet(d2);
@@ -1448,6 +1624,7 @@ function printKaikei() {
   const h = getHeader();
   const cashTot = S.cash.reduce((s, e) => s + (e.amount || 0), 0);
   const trTot   = S.transfer.filter(e => !e.isHeader).reduce((s, e) => s + (e.amount || 0), 0);
+  const postalTot = postalTotal();
 
   function pfmt(n) {
     if (!n) return '';
@@ -1512,6 +1689,7 @@ function printKaikei() {
     <tr class="tot"><td>現金支払い合計</td><td class="num">${pfmt(cashTot)}</td><td></td></tr>
     ${transferRows(S.transfer)}
     <tr class="gap"><td>&nbsp;</td><td></td><td></td></tr>
+    <tr class="tot"><td>郵便局合計</td><td class="num">${pfmt(postalTot)}</td><td></td></tr>
     <tr class="tot"><td>振込合計</td><td class="num">${pfmt(trTot)}</td><td></td></tr>
   </tbody>
 </table>
@@ -1539,6 +1717,7 @@ function makeBackdropClose(id, fn) {
 makeBackdropClose('vendor-overlay',   closeVendorModal);
 makeBackdropClose('entry-overlay',    closeEntryModal);
 makeBackdropClose('settings-overlay', closeSettings);
+makeBackdropClose('confirm-overlay',  () => document.getElementById('confirm-no-btn').click());
 
 // ============================================================
 // Modal keyboard navigation — Enter / ↑↓ で項目間を移動、Escape で閉じる
@@ -1638,7 +1817,31 @@ function _attachTableKeydown(wrapId, kind) {
   });
 }
 
+// ============================================================
+// ダークモード
+// ============================================================
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem('月末ツール_theme', theme);
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+}
+function initTheme() {
+  const saved = localStorage.getItem('月末ツール_theme');
+  if (saved === 'dark' || saved === 'light') {
+    applyTheme(saved);
+  } else {
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    applyTheme(prefersDark ? 'dark' : 'light');
+  }
+}
+
 // Initial render
+initTheme();
 loadMaster();
 initFromMaster();
 renderVendors();
