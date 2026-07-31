@@ -626,7 +626,7 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
 <!-- ===== Modal: 確認（はい/いいえ）===== -->
 <div id="confirm-overlay" class="overlay hidden" style="z-index:600">
   <div class="modal" style="max-width:340px;padding:20px 22px">
-    <div id="confirm-message" style="font-size:0.9rem;color:#1f2937;margin-bottom:18px;line-height:1.6"></div>
+    <div id="confirm-message" style="font-size:0.9rem;color:var(--ios-text);margin-bottom:18px;line-height:1.6"></div>
     <div class="modal-btns">
       <button class="btn btn-gray" id="confirm-no-btn">いいえ</button>
       <button class="btn btn-blue" id="confirm-yes-btn">はい</button>
@@ -772,8 +772,12 @@ function loadMaster() {
     else    MASTER = JSON.parse(JSON.stringify(MASTER_DEFAULT));
   } catch(e) { MASTER = JSON.parse(JSON.stringify(MASTER_DEFAULT)); }
 }
-function saveMaster() {
+function saveMasterLocal() {
   localStorage.setItem('月末ツール_master', JSON.stringify(MASTER));
+}
+function saveMaster() {
+  saveMasterLocal();
+  if (dirHandle) writeMasterToFolder();
 }
 function initFromMaster() {
   // 月末明細は「会計→明細 反映」で生成するため初期は空
@@ -792,6 +796,7 @@ function initFromMaster() {
 const S = { vendors: [], cash: [], transfer: [] };
 let selV = null, selC = null, selT = null;
 let editVIdx = null, editEKind = null, editEIdx = null;
+let vendorRegisteredThisSession = false;
 let vendorMasterMode = false;
 
 // ============================================================
@@ -952,6 +957,7 @@ function resetAll() {
 function openVendorModal(idx, masterMode) {
   vendorMasterMode = !!masterMode;
   editVIdx = (idx !== undefined) ? idx : null;
+  vendorRegisteredThisSession = false;
   const list = vendorMasterMode ? MASTER.vendors : S.vendors;
   const v = editVIdx !== null ? list[editVIdx] : null;
 
@@ -1025,9 +1031,11 @@ function saveVendor() {
     selV = S.vendors.indexOf(entry);
     closeVendorModal();
     renderVendors();
-    showConfirm('マスターに登録しますか？（口座番号などの情報を保存し、次回以降は入力不要になります）', () => {
-      registerVendorToMaster(base);
-    });
+    if (!vendorRegisteredThisSession) {
+      showConfirm('マスターに登録しますか？（口座番号などの情報を保存し、次回以降は入力不要になります）', () => {
+        registerVendorToMaster(base);
+      });
+    }
   }
 }
 
@@ -1067,6 +1075,7 @@ function registerCurrentVendorToMaster() {
     notes:    document.getElementById('v-notes').value.trim(),
   };
   registerVendorToMaster(base);
+  vendorRegisteredThisSession = true;
   alert(`「${name}」の情報をマスターに登録しました。\n次回からは「今月に追加」だけで口座情報が入力されます。`);
 }
 
@@ -1357,6 +1366,42 @@ function updateFileStatus(state) {
     el.style.color = 'var(--ios-text-tertiary)';
   }
 }
+// ===== マスターデータ（会社マスター）もフォルダへ同期 =====
+const MASTER_FILE_NAME = '月末データ_マスター設定.json';
+// フォルダ内のマスターファイルを読み込む（無ければ null）
+async function readMasterFromFolder() {
+  if (!dirHandle) return null;
+  if (!(await ensurePerm(dirHandle, 'readwrite'))) return null;
+  try {
+    const h = await dirHandle.getFileHandle(MASTER_FILE_NAME);
+    const f = await h.getFile();
+    const t = await f.text();
+    if (!t.trim()) return null;
+    const d = JSON.parse(t);
+    return (d && (d.vendors || d.cash || d.transfer)) ? d : null;
+  } catch (e) { return null; }
+}
+// マスターデータをフォルダへ書き込む（既存なら上書き）
+async function writeMasterToFolder() {
+  if (!dirHandle) return false;
+  try {
+    if (!(await ensurePerm(dirHandle, 'readwrite'))) return false;
+    const fh = await dirHandle.getFileHandle(MASTER_FILE_NAME, { create: true });
+    const w = await fh.createWritable();
+    await w.write(JSON.stringify(MASTER, null, 2));
+    await w.close();
+    return true;
+  } catch (e) { return false; }
+}
+// フォルダのマスターを取り込む（あれば MASTER を置き換えて true、無ければ false）
+async function fetchFolderMaster() {
+  const data = await readMasterFromFolder();
+  if (!data) return false;
+  MASTER = { vendors: [], cash: [], transfer: [], ...data };
+  saveMasterLocal();
+  return true;
+}
+
 // 指定年月のファイルを読み込む（無ければ null）
 async function readMonthFile(year, month) {
   if (!dirHandle) return null;
@@ -1407,6 +1452,11 @@ async function chooseFolder() {
     const dh = await window.showDirectoryPicker({ mode: 'readwrite' });
     dirHandle = dh;
     await idbSet('dirHandle', dh);
+
+    // マスターデータ（会社マスター）もフォルダと同期。フォルダに無ければ現在のマスターを書き出す
+    const gotMaster = await fetchFolderMaster();
+    if (!gotMaster) await writeMasterToFolder();
+
     const h = getHeader();
     if (h.year && h.month) {
       const data = await readMonthFile(h.year, h.month);
@@ -1460,6 +1510,17 @@ document.addEventListener('keydown', e => {
     const dh = await idbGet('dirHandle');
     if (dh) {
       dirHandle = dh;
+      if ((await dh.queryPermission({ mode: 'readwrite' })) === 'granted') {
+        const gotMaster = await fetchFolderMaster();
+        if (gotMaster) {
+          initFromMaster();
+          renderVendors();
+          renderTable('cash');
+          renderTable('transfer');
+        } else {
+          await writeMasterToFolder();
+        }
+      }
       updateFileStatus();
     }
   } catch (e) {}
@@ -1492,8 +1553,12 @@ function loadJSON(event) {
 // ============================================================
 let _stabActive = 'vendor';
 
-function openSettings(tab) {
+async function openSettings(tab) {
   loadMaster();
+  if (dirHandle) {
+    const got = await fetchFolderMaster();
+    if (!got) await writeMasterToFolder();
+  }
   switchStab(tab || _stabActive || 'vendor');
   document.getElementById('settings-overlay').classList.remove('hidden');
 }
@@ -2019,4 +2084,3 @@ _attachTableKeydown('transfer-table-wrap', 'transfer');
 <div class="app-footer">©2026 SWIFTRAPTOR</div>
 </body>
 </html>
-
