@@ -427,7 +427,6 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
     <span id="file-status" style="font-size:0.72rem;color:var(--ios-text-tertiary);white-space:nowrap"></span>
   </div>
   <div class="header-buttons">
-    <button class="btn btn-white" onclick="chooseFolder()" title="保存フォルダを選ぶ（同じ年月のファイルは自動で上書き）">📁</button>
     <button class="btn btn-white" onclick="saveCurrent()">保存</button>
     <label class="btn btn-white" style="cursor:pointer">読込<input type="file" accept=".json" onchange="loadJSON(event)" style="display:none"></label>
     <div class="hdr-sep"></div>
@@ -670,6 +669,16 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
 <div id="settings-overlay" class="overlay hidden" style="z-index:490">
   <div class="modal" style="max-width:560px">
     <div class="modal-title">設定 — 会社マスターデータの管理</div>
+
+    <div style="margin-bottom:16px;padding:10px 12px;background:var(--ios-surface2);border:1px solid var(--ios-border);border-radius:10px">
+      <div style="font-size:0.85rem;font-weight:700;margin-bottom:4px">📁 保存フォルダ連携</div>
+      <div style="font-size:0.78rem;color:var(--ios-text-secondary);margin-bottom:8px;line-height:1.5">フォルダを連携すると、月次データとマスターデータが自動でそのフォルダに保存されます（同じ年月のファイルは上書き）。</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-blue btn-sm" onclick="chooseFolder()">フォルダを選ぶ</button>
+        <span id="settings-file-status" style="font-size:0.78rem;color:var(--ios-text-tertiary)"></span>
+      </div>
+    </div>
+
     <p style="font-size:0.78rem;color:var(--ios-text-secondary);margin-bottom:10px">ここで登録した内容は次回以降も保持されます。「今月に追加」で今月の一覧に反映します。</p>
     <div style="display:flex;border-bottom:2px solid var(--ios-border);margin-bottom:14px">
       <button class="stab-btn stab-active" id="stab-btn-vendor" onclick="switchStab('vendor')">月末明細</button>
@@ -1349,22 +1358,26 @@ async function ensurePerm(h, mode) {
   return (await h.requestPermission(o)) === 'granted';
 }
 function updateFileStatus(state) {
-  const el = document.getElementById('file-status');
-  if (!el) return;
-  if (!dirHandle) { el.textContent = ''; return; }
+  const els = ['file-status', 'settings-file-status']
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+  if (!els.length) return;
+  if (!dirHandle) { els.forEach(el => { el.textContent = ''; }); return; }
   const h = getHeader();
   const fname = fileNameFor(h.year, h.month);
+  let text, color;
   if (state === 'saved') {
     const t = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-    el.textContent = `📁 ${dirHandle.name} / ${fname}（${t} 保存済）`;
-    el.style.color = 'var(--ios-green)';
+    text = `📁 ${dirHandle.name} / ${fname}（${t} 保存済）`;
+    color = 'var(--ios-green)';
   } else if (state === 'error') {
-    el.textContent = '⚠ 保存に失敗しました';
-    el.style.color = 'var(--ios-red)';
+    text = '⚠ 保存に失敗しました';
+    color = 'var(--ios-red)';
   } else {
-    el.textContent = `📁 ${dirHandle.name} / ${fname}`;
-    el.style.color = 'var(--ios-text-tertiary)';
+    text = `📁 ${dirHandle.name} / ${fname}`;
+    color = 'var(--ios-text-tertiary)';
   }
+  els.forEach(el => { el.textContent = text; el.style.color = color; });
 }
 // ===== マスターデータ（会社マスター）もフォルダへ同期 =====
 const MASTER_FILE_NAME = '月末データ_マスター設定.json';
@@ -1559,6 +1572,7 @@ async function openSettings(tab) {
     const got = await fetchFolderMaster();
     if (!got) await writeMasterToFolder();
   }
+  updateFileStatus();
   switchStab(tab || _stabActive || 'vendor');
   document.getElementById('settings-overlay').classList.remove('hidden');
 }
