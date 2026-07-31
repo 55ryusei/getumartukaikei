@@ -421,12 +421,14 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
   <span class="app-title">月末集計・月末明細 ツール</span>
   <div class="header-fields">
     <label>年度</label>
-    <input id="h-year" type="text" placeholder="例: 8" maxlength="4">
+    <input id="h-year" type="text" placeholder="例: 8" maxlength="4" onchange="onPeriodChange()">
     <label>月</label>
-    <input id="h-month" type="text" placeholder="例: 4" maxlength="2" style="width:55px">
+    <input id="h-month" type="text" placeholder="例: 4" maxlength="2" style="width:55px" onchange="onPeriodChange()">
+    <span id="file-status" style="font-size:0.72rem;color:var(--ios-text-tertiary);white-space:nowrap"></span>
   </div>
   <div class="header-buttons">
-    <button class="btn btn-white" onclick="saveJSON()">保存</button>
+    <button class="btn btn-white" onclick="chooseFolder()" title="保存フォルダを選ぶ（同じ年月のファイルは自動で上書き）">📁</button>
+    <button class="btn btn-white" onclick="saveCurrent()">保存</button>
     <label class="btn btn-white" style="cursor:pointer">読込<input type="file" accept=".json" onchange="loadJSON(event)" style="display:none"></label>
     <div class="hdr-sep"></div>
     <button class="btn btn-white" onclick="openSettings()">設定</button>
@@ -1299,6 +1301,169 @@ function saveJSON() {
   a.download = `月末データ_${h.year || 'x'}年${h.month || 'x'}月.json`;
   a.click();
 }
+
+// ============================================================
+// フォルダ連携保存（File System Access API：年月ごとに別ファイル・同月は上書き）
+// ============================================================
+let dirHandle = null;
+const FS_SUPPORTED = ('showDirectoryPicker' in window);
+const fileNameFor = (year, month) => `月末データ_${year || 'x'}年${month || 'x'}月.json`;
+function idbOpen() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('getsumatsuFS', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbSet(k, v) {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const t = db.transaction('kv', 'readwrite');
+    t.objectStore('kv').put(v, k);
+    t.oncomplete = () => res();
+    t.onerror = () => rej(t.error);
+  });
+}
+async function idbGet(k) {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const t = db.transaction('kv', 'readonly');
+    const rq = t.objectStore('kv').get(k);
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+}
+async function ensurePerm(h, mode) {
+  const o = { mode };
+  if ((await h.queryPermission(o)) === 'granted') return true;
+  return (await h.requestPermission(o)) === 'granted';
+}
+function updateFileStatus(state) {
+  const el = document.getElementById('file-status');
+  if (!el) return;
+  if (!dirHandle) { el.textContent = ''; return; }
+  const h = getHeader();
+  const fname = fileNameFor(h.year, h.month);
+  if (state === 'saved') {
+    const t = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    el.textContent = `📁 ${dirHandle.name} / ${fname}（${t} 保存済）`;
+    el.style.color = 'var(--ios-green)';
+  } else if (state === 'error') {
+    el.textContent = '⚠ 保存に失敗しました';
+    el.style.color = 'var(--ios-red)';
+  } else {
+    el.textContent = `📁 ${dirHandle.name} / ${fname}`;
+    el.style.color = 'var(--ios-text-tertiary)';
+  }
+}
+// 指定年月のファイルを読み込む（無ければ null）
+async function readMonthFile(year, month) {
+  if (!dirHandle) return null;
+  if (!(await ensurePerm(dirHandle, 'readwrite'))) return null;
+  try {
+    const h = await dirHandle.getFileHandle(fileNameFor(year, month));
+    const f = await h.getFile();
+    const t = await f.text();
+    if (!t.trim()) return null;
+    return JSON.parse(t);
+  } catch (e) { return null; }  // NotFoundError 等 → 無し
+}
+// 現在の年月のファイルへ書き込む（既存なら上書き、無ければ新規作成）
+async function writeToFolder() {
+  if (!dirHandle) return false;
+  try {
+    if (!(await ensurePerm(dirHandle, 'readwrite'))) return false;
+    const h = getHeader();
+    const fh = await dirHandle.getFileHandle(fileNameFor(h.year, h.month), { create: true });
+    const w = await fh.createWritable();
+    await w.write(JSON.stringify({ ...h, vendors: S.vendors, cash: S.cash, transfer: S.transfer }, null, 2));
+    await w.close();
+    updateFileStatus('saved');
+    return true;
+  } catch (e) {
+    updateFileStatus('error');
+    return false;
+  }
+}
+// 保存ボタン：フォルダ連携中はそのフォルダへ（同月なら上書き）、未連携なら従来通りダウンロード
+async function saveCurrent() {
+  if (dirHandle) {
+    const h = getHeader();
+    if (!h.year || !h.month) { alert('年度と月を入力してください'); return; }
+    const ok = await writeToFolder();
+    if (!ok) saveJSON();
+  } else {
+    saveJSON();
+  }
+}
+// 保存先フォルダを選ぶ／切り替える
+async function chooseFolder() {
+  if (!FS_SUPPORTED) {
+    alert('お使いのブラウザはフォルダ連携に対応していません。「保存」は通常のダウンロードになります。');
+    return;
+  }
+  try {
+    const dh = await window.showDirectoryPicker({ mode: 'readwrite' });
+    dirHandle = dh;
+    await idbSet('dirHandle', dh);
+    const h = getHeader();
+    if (h.year && h.month) {
+      const data = await readMonthFile(h.year, h.month);
+      if (data && confirm(`フォルダ「${dh.name}」を連携しました。\n既存の ${fileNameFor(h.year, h.month)} が見つかりました。読み込みますか？\n（現在の入力内容は上書きされます）`)) {
+        S.vendors = data.vendors || [];
+        S.cash = data.cash || [];
+        S.transfer = data.transfer || [];
+        selV = selC = selT = null;
+        renderVendors();
+        renderTable('cash');
+        renderTable('transfer');
+      } else if (!data) {
+        await writeToFolder();
+      }
+    }
+    updateFileStatus();
+  } catch (e) {
+    if (e.name !== 'AbortError') alert('フォルダを選択できませんでした: ' + e.message);
+  }
+}
+// 年度・月の入力を変えたとき：連携フォルダに同名ファイルがあれば読み込むか確認する
+async function onPeriodChange() {
+  if (!dirHandle) return;
+  const h = getHeader();
+  if (!h.year || !h.month) { updateFileStatus(); return; }
+  const data = await readMonthFile(h.year, h.month);
+  if (data) {
+    if (confirm(`フォルダ内に ${fileNameFor(h.year, h.month)} が見つかりました。\n読み込みますか？（現在の入力内容は上書きされます）`)) {
+      S.vendors = data.vendors || [];
+      S.cash = data.cash || [];
+      S.transfer = data.transfer || [];
+      selV = selC = selT = null;
+      renderVendors();
+      renderTable('cash');
+      renderTable('transfer');
+    }
+  }
+  updateFileStatus();
+}
+// Ctrl+S で保存
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    saveCurrent();
+  }
+});
+// 起動時：前回連携したフォルダを記憶していれば権限確認のうえ状態表示を復元
+(async function restoreDir() {
+  if (!FS_SUPPORTED) return;
+  try {
+    const dh = await idbGet('dirHandle');
+    if (dh) {
+      dirHandle = dh;
+      updateFileStatus();
+    }
+  } catch (e) {}
+})();
 function loadJSON(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -1854,3 +2019,4 @@ _attachTableKeydown('transfer-table-wrap', 'transfer');
 <div class="app-footer">©2026 SWIFTRAPTOR</div>
 </body>
 </html>
+
