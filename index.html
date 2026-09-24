@@ -538,7 +538,7 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
 
     <div class="fg">
       <label>会社名 <span style="color:red">*</span></label>
-      <input id="v-name" type="text" placeholder="例: トライ">
+      <input id="v-name" type="text" placeholder="例: ○○商店">
     </div>
 
     <div class="fg">
@@ -559,12 +559,12 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
     <div id="v-bank-sec" style="display:none">
       <div class="fg">
         <label>銀行名</label>
-        <input id="v-bank" type="text" placeholder="例: 埼玉りそな銀行">
+        <input id="v-bank" type="text" placeholder="例: ○○銀行">
       </div>
       <div class="fg row">
         <div class="fg" style="margin:0">
           <label>支店名</label>
-          <input id="v-branch" type="text" placeholder="例: 浦和中央支店">
+          <input id="v-branch" type="text" placeholder="例: ○○支店">
         </div>
         <div class="fg shrink" style="margin:0;width:90px">
           <label>口座種別</label>
@@ -575,7 +575,7 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
         </div>
         <div class="fg shrink" style="margin:0;width:130px">
           <label>口座番号</label>
-          <input id="v-acnum" type="text" placeholder="例: 0303475">
+          <input id="v-acnum" type="text" placeholder="例: 1234567">
         </div>
       </div>
     </div>
@@ -639,7 +639,7 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
     <div class="modal-title" id="entry-modal-title">現金支払いを追加</div>
     <div class="fg">
       <label>会社名 <span style="color:red">*</span></label>
-      <input id="e-name" type="text" placeholder="例: 原田ガソリン">
+      <input id="e-name" type="text" placeholder="例: ○○商店">
     </div>
     <div class="fg">
       <label>金額（円）</label>
@@ -731,44 +731,15 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
 
 // ============================================================
 // マスターデータ（設定） — localStorage に永続保存
+// 実データ（業者名・銀行口座など）はソースに書かない。
+// 連携フォルダの「月末データ_マスター設定.json」／localStorage から読み込む。
+// ここは初回起動時の空の雛形のみ（〒郵便局のカテゴリ区切り行だけ残す）。
 // ============================================================
 const MASTER_DEFAULT = {
-  vendors: [
-    { name:'ドリームガーデン',           type:'reg',  regNum:'7', bank:'', branch:'', acType:'普通', acNum:'',        fee:440, enofutan:true,  notes:'' },
-    { name:'トライ',                     type:'reg',  regNum:'3', bank:'', branch:'', acType:'普通', acNum:'',        fee:440, enofutan:false, notes:'' },
-    { name:'エコユニオン',               type:'reg',  regNum:'6', bank:'', branch:'', acType:'普通', acNum:'',        fee:440, enofutan:false, notes:'' },
-    { name:'カネマス',                   type:'reg',  regNum:'2', bank:'', branch:'', acType:'普通', acNum:'',        fee:220, enofutan:true,  notes:'' },
-    { name:'ブリティシュ',               type:'reg',  regNum:'4', bank:'', branch:'', acType:'普通', acNum:'',        fee:440, enofutan:true,  notes:'' },
-    { name:'フレーベル',                 type:'reg',  regNum:'9', bank:'', branch:'', acType:'普通', acNum:'',        fee:0,   enofutan:false, notes:'' },
-    { name:'トーカイ',                   type:'bank', regNum:'',  bank:'三菱UFJ銀行',   branch:'すずかぜ支店', acType:'普通', acNum:'1461823', fee:440, enofutan:true,  notes:'' },
-    { name:'よいこのフカイ',             type:'bank', regNum:'',  bank:'埼玉りそな銀行', branch:'浦和中央支店', acType:'普通', acNum:'0303475', fee:440, enofutan:false, notes:'' },
-    { name:'アルファジャパン',           type:'bank', regNum:'',  bank:'埼玉りそな銀行', branch:'朝霞支店',     acType:'普通', acNum:'1433759', fee:0,   enofutan:false, notes:'' },
-    { name:'岩槻・蓮田地区警察官友の会', type:'bank', regNum:'',  bank:'埼玉りそな銀行', branch:'岩槻支店',     acType:'普通', acNum:'0280635', fee:440, enofutan:false, notes:'' },
-  ],
-  cash: [
-    { name:'原田ガソリン',   note:'' },
-    { name:'冠木商店',       note:'' },
-    { name:'石原モータース', note:'' },
-    { name:'ネット',         note:'' },
-    { name:'生花　香典',     note:'' },
-  ],
+  vendors: [],
+  cash: [],
   transfer: [
-    { name:'ドリームガーデン', note:'' },
-    { name:'トライ警備',       note:'' },
-    { name:'カネマス',         note:'' },
-    { name:'フレーベル',       note:'' },
-    { name:'商工会',           note:'振込用紙' },
-    { name:'よいこのフカイ',   note:'' },
-    { name:'エコユニオン',     note:'' },
-    { name:'トーカイ',         note:'' },
-    { name:'アルファジャパン', note:'' },
-    { name:'ブリティシュ',     note:'' },
-    { name:'警察官友の会',     note:'' },
     { name:'〒 郵便局', note:'', isHeader:true },
-    { name:'マルゴ',     note:'' },
-    { name:'矢部プロ',   note:'' },
-    { name:'庄司',       note:'' },
-    { name:'菊地商事',   note:'' },
   ],
 };
 
