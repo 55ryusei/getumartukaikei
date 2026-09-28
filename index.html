@@ -606,7 +606,8 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
     <div id="v-amount-wrap">
       <div class="fg" style="margin-top:8px">
         <label>合計金額（月末会計用・円）</label>
-        <input id="v-amount" type="text" inputmode="numeric" value="0" oninput="formatCommaInput(this)">
+        <input id="v-amount" type="text" inputmode="numeric" value="0" oninput="formatSumInput(this);updateSumHint(this)">
+        <div class="amt-sub"></div>
       </div>
       <div style="font-size:0.78rem;color:var(--ios-text-secondary);margin:-4px 0 10px;line-height:1.5">
         ※ 園負担でない場合：手数料込の合計を入力　月末明細には「合計 − 手数料」が自動表示されます。
@@ -954,7 +955,7 @@ function renderVendors() {
       <td>${esc(v.name)}</td>
       <td style="font-size:0.82rem">${info}</td>
       <td style="font-size:0.82rem">${meisai}</td>
-      <td class="num">${v.amount > 0 ? '¥ ' + fmt(v.amount) : '0'}</td>
+      <td class="num">${v.amount > 0 ? '¥ ' + fmt(v.amount) : '0'}${v.parts ? `<div class="amt-sub">${partsHtml(v.parts)}</div>` : ''}</td>
       <td style="font-size:0.82rem;color:var(--ios-text-secondary)"></td>
       <td class="act">
         <button class="row-menu-btn" onclick="openVendorModal(${i});event.stopPropagation()" title="編集・削除">⋮</button>
@@ -1021,7 +1022,9 @@ function openVendorModal(idx, masterMode) {
   document.getElementById('v-branch').value = v ? v.branch : '';
   document.getElementById('v-actype').value = v ? v.acType : '普通';
   document.getElementById('v-acnum').value  = v ? v.acNum : '';
-  document.getElementById('v-amount').value     = fmt(v ? v.amount : 0);
+  const vAmtEl = document.getElementById('v-amount');
+  vAmtEl.value = (v && v.parts) ? partsText(v.parts) : fmt(v ? v.amount : 0);
+  updateSumHint(vAmtEl);
   document.getElementById('v-fee').value        = fmt(v ? v.fee : 440);
   document.getElementById('v-enofutan').checked = v ? !!v.enofutan : false;
   document.getElementById('v-notes').value      = v ? (v.notes || '') : '';
@@ -1068,7 +1071,8 @@ function saveVendor() {
     closeVendorModal();
     renderMasterList('vendor');
   } else {
-    const entry = { ...base, amount: parseCommaNum(document.getElementById('v-amount').value) };
+    const entry = { ...base, amount: 0 };
+    setEntryAmount(entry, document.getElementById('v-amount').value);
     const isNew = editVIdx === null;
     if (isNew) {
       S.vendors.push(entry);
@@ -1316,7 +1320,7 @@ function syncKaikeiToMeisai() {
     .filter(e => !e.isHeader);
 
   // 全ベンダーの金額を一旦0にリセット
-  S.vendors.forEach(v => { v.amount = 0; });
+  S.vendors.forEach(v => { v.amount = 0; delete v.parts; });
 
   let updated = 0, added = 0;
   for (const te of syncList) {
@@ -1327,6 +1331,7 @@ function syncKaikeiToMeisai() {
 
     if (vendor) {
       vendor.amount = te.amount;
+      if (te.parts) vendor.parts = [...te.parts];  // 「+」入力の内訳も引き継ぐ
       updated++;
     } else {
       // S.vendorsにない → MASTERから口座・登録番号を補完
@@ -1334,6 +1339,7 @@ function syncKaikeiToMeisai() {
       const newV = mv
         ? { ...mv, amount: te.amount }
         : { name: te.name, type: 'reg', regNum: '', bank: '', branch: '', acType: '普通', acNum: '', fee: 0, notes: te.note || '', amount: te.amount };
+      if (te.parts) newV.parts = [...te.parts];
       S.vendors.push(newV);
       added++;
     }
@@ -1929,6 +1935,8 @@ function printMeisai() {
       }
       // 園負担でない場合は手数料を引いた額が明細に載る
       body += `<p class="vamt">${meisaiDisplay(v)}</p>`;
+      // 「+」で入力した場合は合計金額の内訳を添える
+      if (v.parts) body += `<p class="vparts">内訳：${partsHtml(v.parts)}（合計¥${fmt(v.amount)}）</p>`;
       body += `</div>`;
     }
   }
@@ -1946,6 +1954,7 @@ function printMeisai() {
   .vinfo { font-size: 9.5pt; color: #333; margin: 1px 0; }
   .vamt  { font-size: 10.5pt; margin: 2px 0 2px; }
   .vnotes { font-size: 9.5pt; color: #555; margin: 0 0 4px; }
+  .vparts { font-size: 9pt; color: #444; margin: 0 0 2px; }
   @media print { @page { margin: 15mm 20mm; } }
 </style>
 </head><body>${body}
