@@ -390,6 +390,14 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
 .inline-amt::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .inline-amt:focus { background: var(--ios-selected-bg); }
 .inline-amt-cell { padding: 2px 6px !important; }
+/* 「+」入力の内訳・合計（金額の下に小さく表示） */
+.amt-sub {
+  font-size: 0.7rem; font-weight: 400; color: var(--ios-text-secondary);
+  text-align: right; line-height: 1.25; padding: 0 2px 3px;
+  font-variant-numeric: tabular-nums;
+}
+.amt-sub:empty { display: none; }
+.fg .amt-sub { margin-top: 4px; font-size: 0.8rem; }
 .hdr-sep { width: 1px; background: var(--ios-border-strong); align-self: stretch; margin: 4px 2px; }
 
 /* ===== Footer ===== */
@@ -643,7 +651,8 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
     </div>
     <div class="fg">
       <label>金額（円）</label>
-      <input id="e-amount" type="text" inputmode="numeric" value="0" oninput="formatCommaInput(this)">
+      <input id="e-amount" type="text" inputmode="numeric" value="0" oninput="formatSumInput(this);updateSumHint(this)">
+      <div class="amt-sub"></div>
     </div>
     <div class="fg">
       <label>備考</label>
@@ -851,6 +860,53 @@ function parseCommaNum(val) {
   return parseInt(String(val).replace(/[^\d]/g, ''), 10) || 0;
 }
 
+// ===== 「+」で足し算できる金額入力（例: 1000+2000+500 → 合計 3,500・内訳を保持）=====
+// 全角の数字・＋も受け付ける
+function toHalfSum(val) {
+  return String(val || '').replace(/[０-９＋]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+}
+// 入力欄の各項をカンマ区切りに整形（例: 1000+2000 → 1,000+2,000）。カーソル位置は保つ
+function formatSumInput(el) {
+  const half  = toHalfSum(el.value);
+  const caret = el.selectionStart ?? half.length;
+  const keep  = half.slice(0, caret).replace(/[^\d+]/g, '').length;
+  const s = half.replace(/[^\d+]/g, '').replace(/\++/g, '+').replace(/^\+/, '')
+    .split('+').map(t => t ? Number(t).toLocaleString('ja-JP') : '').join('+');
+  el.value = s;
+  let n = 0, pos = 0;
+  while (pos < s.length && n < keep) { if (/[\d+]/.test(s[pos])) n++; pos++; }
+  el.setSelectionRange(pos, pos);
+}
+// 入力値を各項の数値配列にする（例: "1,000+2,000+500" → [1000, 2000, 500]）
+function parseSumTerms(val) {
+  return toHalfSum(val).split('+')
+    .map(t => t.replace(/[^\d]/g, ''))
+    .filter(t => t)
+    .map(t => parseInt(t, 10));
+}
+// 入力値から金額を設定。2項以上なら内訳（parts）も保存、1項以下なら内訳は消す
+function setEntryAmount(e, val) {
+  const parts = parseSumTerms(val);
+  e.amount = parts.reduce((s, n) => s + n, 0);
+  if (parts.length > 1) e.parts = parts; else delete e.parts;
+}
+// 内訳の文字列（編集用）: [1000, 2000] → "1,000+2,000"
+function partsText(parts) {
+  return parts.map(fmt).join('+');
+}
+// 内訳の表示用HTML（狭い欄では「+」の後で折り返す）
+function partsHtml(parts) {
+  return parts.map(fmt).join('+<wbr>');
+}
+// 入力中、「+」があれば入力欄の下に合計を表示
+function updateSumHint(el) {
+  const sub = el.parentElement.querySelector('.amt-sub');
+  if (!sub) return;
+  sub.textContent = el.value.includes('+')
+    ? '= ' + fmt(parseSumTerms(el.value).reduce((s, n) => s + n, 0))
+    : '';
+}
+
 // 月末明細に印字する金額文字列を返す
 // 園負担でない場合：入力合計金額から手数料を引いた額が明細に載る
 // 例: 合計211,365・手数料440 → "¥210,925（440）"
@@ -907,15 +963,27 @@ function renderVendors() {
   }).join('');
 }
 
-function inlineEntryAmountSave(kind, idx, val) {
+function inlineEntryAmountSave(kind, idx, el) {
   const list = kind === 'cash' ? S.cash : S.transfer;
-  list[idx].amount = parseCommaNum(val);
+  const e = list[idx];
+  setEntryAmount(e, el.value);
+  // 確定後は入力欄に合計、その下に内訳を表示
+  el.value = e.amount ? fmt(e.amount) : '';
+  const sub = el.parentElement.querySelector('.amt-sub');
+  if (sub) sub.innerHTML = e.parts ? partsHtml(e.parts) : '';
   const totId = kind === 'cash' ? 'cash-total' : 'transfer-total';
   const total = list.filter(e => !e.isHeader).reduce((s, e) => s + (e.amount || 0), 0);
   document.getElementById(totId).textContent = '¥ ' + fmt(total);
   if (kind === 'transfer') {
     document.getElementById('postal-total').textContent = '¥ ' + fmt(postalTotal());
   }
+}
+// 編集開始時、内訳があれば入力欄を「1,000+2,000」の形に戻す
+function inlineAmtFocus(kind, idx, el) {
+  const e = (kind === 'cash' ? S.cash : S.transfer)[idx];
+  if (!e.parts) return;
+  el.value = partsText(e.parts);
+  updateSumHint(el);
 }
 // 郵便局ヘッダー以降のエントリーだけの合計
 function postalTotal() {
@@ -1111,10 +1179,11 @@ function renderTable(kind) {
       <td>${esc(e.name)}</td>
       <td class="num inline-amt-cell" onclick="event.stopPropagation()">
         <input type="text" inputmode="numeric" value="${e.amount ? fmt(e.amount) : ''}" placeholder="0" class="inline-amt"
-          oninput="formatCommaInput(this)"
-          onfocus="${selRef}=${i};document.querySelectorAll('#${tbId} tr').forEach((r,j)=>r.classList.toggle('selected',j===${i}))"
-          onblur="inlineEntryAmountSave('${kind}',${i},this.value)"
-          onkeydown="if(event.key==='Enter'){inlineEntryAmountSave('${kind}',${i},this.value);this.blur();document.getElementById('${kind}-table-wrap').focus()}else if(event.key==='Escape'){this.blur();document.getElementById('${kind}-table-wrap').focus()}">
+          oninput="formatSumInput(this);updateSumHint(this)"
+          onfocus="${selRef}=${i};document.querySelectorAll('#${tbId} tr').forEach((r,j)=>r.classList.toggle('selected',j===${i}));inlineAmtFocus('${kind}',${i},this)"
+          onblur="inlineEntryAmountSave('${kind}',${i},this)"
+          onkeydown="if(event.key==='Enter'){this.blur();document.getElementById('${kind}-table-wrap').focus()}else if(event.key==='Escape'){this.blur();document.getElementById('${kind}-table-wrap').focus()}">
+        <div class="amt-sub">${e.parts ? partsHtml(e.parts) : ''}</div>
       </td>
       <td style="white-space:nowrap">${esc(e.note)}</td>
       <td class="act">
@@ -1142,7 +1211,9 @@ function openEntryModal(kind, idx) {
 
   document.getElementById('entry-modal-title').textContent = `${kLabel}${e ? 'を編集' : 'を追加'}`;
   document.getElementById('e-name').value   = e ? e.name   : '';
-  document.getElementById('e-amount').value = fmt(e ? e.amount : 0);
+  const amtEl = document.getElementById('e-amount');
+  amtEl.value = (e && e.parts) ? partsText(e.parts) : fmt(e ? e.amount : 0);
+  updateSumHint(amtEl);
   document.getElementById('e-note').value   = e ? e.note   : '';
 
   const postalWrap = document.getElementById('e-postal-wrap');
@@ -1177,9 +1248,10 @@ function saveEntry() {
   if (!name) { alert('会社名を入力してください'); return; }
   const entry = {
     name,
-    amount: parseCommaNum(document.getElementById('e-amount').value),
+    amount: 0,
     note:   document.getElementById('e-note').value.trim(),
   };
+  setEntryAmount(entry, document.getElementById('e-amount').value);
   const list  = editEKind === 'cash' ? S.cash : S.transfer;
   const isNew = editEIdx === null;
   const isPostal = document.getElementById('e-postal')?.checked;
@@ -1275,10 +1347,16 @@ function syncKaikeiToMeisai() {
 // ============================================================
 // Save / Load JSON
 // ============================================================
+// 年度・月の入力を正規化: 全角数字→半角、先頭の0を除去（"０７" → "7"）。
+// フォルダ内のファイル名「月末データ_8年7月.json」と揃えるため
+function normNum(s) {
+  const half = String(s || '').trim().replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  return half.replace(/^0+(?=\d)/, '');
+}
 function getHeader() {
   return {
-    year:  document.getElementById('h-year').value.trim(),
-    month: document.getElementById('h-month').value.trim(),
+    year:  normNum(document.getElementById('h-year').value),
+    month: normNum(document.getElementById('h-month').value),
   };
 }
 function saveJSON() {
@@ -1341,6 +1419,9 @@ function updateFileStatus(state) {
     const t = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
     text = `📁 ${dirHandle.name} / ${fname}（${t} 保存済）`;
     color = 'var(--ios-green)';
+  } else if (state === 'new') {
+    text = `📁 ${dirHandle.name} / ${fname}（新規・未保存）`;
+    color = 'var(--ios-orange)';
   } else if (state === 'error') {
     text = '⚠ 保存に失敗しました';
     color = 'var(--ios-red)';
@@ -1397,6 +1478,12 @@ async function readMonthFile(year, month) {
     if (!t.trim()) return null;
     return JSON.parse(t);
   } catch (e) { return null; }  // NotFoundError 等 → 無し
+}
+// 指定年月のファイルがフォルダに存在するか（権限確認済みの前提。無ければ false）
+async function monthFileExists(year, month) {
+  if (!dirHandle) return false;
+  try { await dirHandle.getFileHandle(fileNameFor(year, month)); return true; }
+  catch (e) { return false; }
 }
 // 現在の年月のファイルへ書き込む（既存なら上書き、無ければ新規作成）
 async function writeToFolder() {
@@ -1461,14 +1548,32 @@ async function chooseFolder() {
     if (e.name !== 'AbortError') alert('フォルダを選択できませんでした: ' + e.message);
   }
 }
-// 年度・月の入力を変えたとき：連携フォルダに同名ファイルがあれば読み込むか確認する
+// 年度・月の入力を変えたとき：
+//   連携フォルダに同名ファイルがあれば読み込むか確認、
+//   無ければ「新しい月として白紙から始める／今の内容を引き継ぐ」を選ばせる
 async function onPeriodChange() {
-  if (!dirHandle) return;
   const h = getHeader();
+  // 入力欄の表示も正規化後の値に揃える（全角・先頭0を直す）
+  document.getElementById('h-year').value  = h.year;
+  document.getElementById('h-month').value = h.month;
+  if (!dirHandle) return;
   if (!h.year || !h.month) { updateFileStatus(); return; }
-  const data = await readMonthFile(h.year, h.month);
+  if (!/^\d+$/.test(h.month) || +h.month < 1 || +h.month > 12) {
+    alert('月は 1〜12 の半角数字で入力してください');
+    updateFileStatus();
+    return;
+  }
+  const fname = fileNameFor(h.year, h.month);
+  // フォルダへのアクセスが拒否された場合に「ファイルが無い」と誤判定しないよう、先に権限を確認
+  if (!(await ensurePerm(dirHandle, 'readwrite'))) {
+    alert('フォルダへのアクセスが許可されていないため、ファイルを確認できませんでした。\n画面の内容はそのままにします。');
+    updateFileStatus();
+    return;
+  }
+  const exists = await monthFileExists(h.year, h.month);
+  const data = exists ? await readMonthFile(h.year, h.month) : null;
   if (data) {
-    if (confirm(`フォルダ内に ${fileNameFor(h.year, h.month)} が見つかりました。\n読み込みますか？（現在の入力内容は上書きされます）`)) {
+    if (confirm(`フォルダ内に ${fname} が見つかりました。\n読み込みますか？（現在の入力内容は上書きされます）`)) {
       S.vendors = data.vendors || [];
       S.cash = data.cash || [];
       S.transfer = data.transfer || [];
@@ -1477,8 +1582,26 @@ async function onPeriodChange() {
       renderTable('cash');
       renderTable('transfer');
     }
+    updateFileStatus();
+  } else if (exists) {
+    alert(`${fname} はフォルダにありますが、内容を読み込めませんでした（空か、壊れている可能性があります）。\n画面の内容はそのままにします。`);
+    updateFileStatus();
+  } else {
+    const fresh = confirm(
+      `フォルダ内に ${fname} はまだありません。\n` +
+      `新しい月として白紙から始めますか？\n` +
+      `（現金・振込の支払先はマスターの一覧に戻り金額は0、月末明細は空になります）\n\n` +
+      `OK: 白紙から始める\nキャンセル: 今の入力内容をそのまま引き継ぐ`
+    );
+    if (fresh) {
+      initFromMaster();
+      selV = selC = selT = null;
+      renderVendors();
+      renderTable('cash');
+      renderTable('transfer');
+    }
+    updateFileStatus('new');
   }
-  updateFileStatus();
 }
 // Ctrl+S で保存
 document.addEventListener('keydown', e => {
@@ -1845,9 +1968,14 @@ function printKaikei() {
     if (!n) return '';
     return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
+  // 金額セル：「+」で入力した場合は合計の下に内訳を小さく印字
+  function amtCell(e) {
+    const parts = e.parts ? `<div class="parts">${partsHtml(e.parts)}</div>` : '';
+    return `<td class="num">${pfmt(e.amount)}${parts}</td>`;
+  }
   function cashRows(list) {
     return list.map(e =>
-      `<tr><td>${esc(e.name)}</td><td class="num">${pfmt(e.amount)}</td><td>${esc(e.note)}</td></tr>`
+      `<tr><td>${esc(e.name)}</td>${amtCell(e)}<td>${esc(e.note)}</td></tr>`
     ).join('');
   }
   function transferRows(list) {
@@ -1855,7 +1983,7 @@ function printKaikei() {
       if (e.isHeader) {
         return `<tr class="cat"><td>${esc(e.name)}</td><td></td><td></td></tr>`;
       }
-      return `<tr><td>${esc(e.name)}</td><td class="num">${pfmt(e.amount)}</td><td>${esc(e.note)}</td></tr>`;
+      return `<tr><td>${esc(e.name)}</td>${amtCell(e)}<td>${esc(e.note)}</td></tr>`;
     }).join('');
   }
   const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
@@ -1878,6 +2006,7 @@ function printKaikei() {
        border-right: 1px solid #bbb; border-bottom: none; border-top: none; border-left: none; }
   td:last-child { border-right: none; }
   .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .parts { font-size: 7.5pt; color: #444; line-height: 1.2; }
   .sect td { font-weight: bold; font-size: 10pt; padding: 4px 8px; height: 20px;
              border-top: 2px solid #000; border-bottom: 1px solid #000;
              border-right: 1px solid #bbb; }
