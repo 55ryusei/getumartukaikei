@@ -1448,7 +1448,8 @@ function updateFileStatus(state) {
   if (!els.length) return;
   if (!dirHandle) { els.forEach(el => { el.textContent = ''; }); return; }
   const h = getHeader();
-  const fname = fileNameFor(h.year, h.month);
+  // 上の階層を連携している場合は、使っている年度フォルダも表示
+  const fname = (!isYearFolder(dirHandle) && h.year ? yearFolderName(h.year) + ' / ' : '') + fileNameFor(h.year, h.month);
   let text, color;
   if (state === 'saved') {
     const t = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
@@ -1466,14 +1467,36 @@ function updateFileStatus(state) {
   }
   els.forEach(el => { el.textContent = text; el.style.color = color; });
 }
-// ===== マスターデータ（会社マスター）もフォルダへ同期 =====
+// ===== 年度フォルダ =====
+// 「★★★★★月末集計★★★★★」のような上の階層を連携した場合は、年度ごとのフォルダ（令和8年度 など）を
+// 自動で使い分ける（無ければ保存時に作る）。「令和8年度」フォルダそのものを連携した場合はそのフォルダだけを使う
+const yearFolderName = year => `令和${year}年度`;
+function isYearFolder(h) {
+  return /^令和\d+年度$/.test(h.name);
+}
+// 指定年度のデータを置くフォルダ（無ければ null。create なら作る）
+async function yearDir(year, create = false) {
+  if (!dirHandle) return null;
+  if (isYearFolder(dirHandle)) return dirHandle;
+  if (!year) return null;
+  try { return await dirHandle.getDirectoryHandle(yearFolderName(year), { create }); }
+  catch (e) { return null; }
+}
+async function hasFile(dir, name) {
+  try { await dir.getFileHandle(name); return true; }
+  catch (e) { return false; }
+}
+
+// ===== マスターデータ（会社マスター）もフォルダへ同期（画面の年度のフォルダ） =====
 const MASTER_FILE_NAME = '月末データ_マスター設定.json';
 // フォルダ内のマスターファイルを読み込む（無ければ null）
 async function readMasterFromFolder() {
   if (!dirHandle) return null;
   if (!(await ensurePerm(dirHandle, 'readwrite'))) return null;
   try {
-    const h = await dirHandle.getFileHandle(MASTER_FILE_NAME);
+    const dir = await yearDir(getHeader().year);
+    if (!dir) return null;
+    const h = await dir.getFileHandle(MASTER_FILE_NAME);
     const f = await h.getFile();
     const t = await f.text();
     if (!t.trim()) return null;
@@ -1486,7 +1509,9 @@ async function writeMasterToFolder() {
   if (!dirHandle) return false;
   try {
     if (!(await ensurePerm(dirHandle, 'readwrite'))) return false;
-    const fh = await dirHandle.getFileHandle(MASTER_FILE_NAME, { create: true });
+    const dir = await yearDir(getHeader().year);  // 年度フォルダがまだ無ければ書かない（初回保存時にコピーする）
+    if (!dir) return false;
+    const fh = await dir.getFileHandle(MASTER_FILE_NAME, { create: true });
     const w = await fh.createWritable();
     await w.write(JSON.stringify(MASTER, null, 2));
     await w.close();
@@ -1507,7 +1532,9 @@ async function readMonthFile(year, month) {
   if (!dirHandle) return null;
   if (!(await ensurePerm(dirHandle, 'readwrite'))) return null;
   try {
-    const h = await dirHandle.getFileHandle(fileNameFor(year, month));
+    const dir = await yearDir(year);
+    if (!dir) return null;
+    const h = await dir.getFileHandle(fileNameFor(year, month));
     const f = await h.getFile();
     const t = await f.text();
     if (!t.trim()) return null;
@@ -1516,9 +1543,8 @@ async function readMonthFile(year, month) {
 }
 // 指定年月のファイルがフォルダに存在するか（権限確認済みの前提。無ければ false）
 async function monthFileExists(year, month) {
-  if (!dirHandle) return false;
-  try { await dirHandle.getFileHandle(fileNameFor(year, month)); return true; }
-  catch (e) { return false; }
+  const dir = await yearDir(year);
+  return dir ? hasFile(dir, fileNameFor(year, month)) : false;
 }
 // 現在の年月のファイルへ書き込む（既存なら上書き、無ければ新規作成）
 async function writeToFolder() {
@@ -1526,10 +1552,15 @@ async function writeToFolder() {
   try {
     if (!(await ensurePerm(dirHandle, 'readwrite'))) return false;
     const h = getHeader();
-    const fh = await dirHandle.getFileHandle(fileNameFor(h.year, h.month), { create: true });
+    // 年度フォルダが無ければ作る（年度替わり）
+    const dir = await yearDir(h.year, true);
+    if (!dir) throw new Error('年度フォルダを用意できませんでした');
+    const fh = await dir.getFileHandle(fileNameFor(h.year, h.month), { create: true });
     const w = await fh.createWritable();
     await w.write(JSON.stringify({ ...h, vendors: S.vendors, cash: S.cash, transfer: S.transfer }, null, 2));
     await w.close();
+    // 新しい年度フォルダには今のマスターをコピーする
+    if (!(await hasFile(dir, MASTER_FILE_NAME))) await writeMasterToFolder();
     updateFileStatus('saved');
     return true;
   } catch (e) {
@@ -1555,37 +1586,29 @@ async function chooseFolder() {
     return;
   }
   try {
-    let dh = await window.showDirectoryPicker({ mode: 'readwrite' });
-    // 年度フォルダ（令和8年度 など）の上の階層を選んだ場合は、中の年度フォルダを連携するか確認する
-    const sub = await findNewerSubfolder(dh);
-    if (sub && confirm(`選んだ「${dh.name}」の中に「${sub.name}」フォルダがあり、新しい月のデータはそちらに入っています。\n「${sub.name}」フォルダを連携しますか？\n\nOK: 「${sub.name}」を連携する\nキャンセル: 「${dh.name}」のまま連携する`)) {
-      dh = sub;
+    const dh = await window.showDirectoryPicker({ mode: 'readwrite' });
+    // 年度フォルダそのものを選んだ場合は、年度替わりを自動にできる上の階層を勧める
+    if (isYearFolder(dh) && confirm(`「${dh.name}」は年度ごとのフォルダです。\n1つ上のフォルダ（★★★★★月末集計★★★★★ など）を選ぶと、年度替わりのときに新しい年度フォルダを自動で作って切り替えます。\n\nOK: 選び直す（もう一度「フォルダを選ぶ」を押してください）\nキャンセル: 「${dh.name}」をこのまま連携する`)) {
+      return;
     }
     dirHandle = dh;
     await idbSet('dirHandle', dh);
     document.getElementById('open-latest-btn').style.display = 'none';
 
-    // マスターデータ（会社マスター）もフォルダと同期。フォルダに無ければ現在のマスターを書き出す
-    const gotMaster = await fetchFolderMaster();
-    if (!gotMaster) await writeMasterToFolder();
-
     const h = getHeader();
-    if (h.year && h.month) {
-      const data = await readMonthFile(h.year, h.month);
-      if (data && confirm(`フォルダ「${dh.name}」を連携しました。\n既存の ${fileNameFor(h.year, h.month)} が見つかりました。読み込みますか？\n（現在の入力内容は上書きされます）`)) {
-        S.vendors = data.vendors || [];
-        S.cash = data.cash || [];
-        S.transfer = data.transfer || [];
-        selV = selC = selT = null;
-        renderVendors();
-        renderTable('cash');
-        renderTable('transfer');
-      } else if (!data) {
-        await writeToFolder();
+    const latest = await findLatestAll();
+    if (latest) {
+      // フォルダ内の一番新しい月を開く（画面に月が出ているときは確認してから）
+      if (!(h.year && h.month) || confirm(`フォルダ「${dh.name}」を連携しました。\nいちばん新しい ${latest.year}年${latest.month}月 を開きますか？\n（今の画面の内容は置き換わります）`)) {
+        await openLatestMonth();
       }
+      // マスターデータ（会社マスター）もフォルダと同期。フォルダに無ければ現在のマスターを書き出す
+      if (!(await fetchFolderMaster())) await writeMasterToFolder();
+    } else if (h.year && h.month) {
+      // 月次データがまだ無いフォルダ：今の画面の月を保存する（マスターも一緒に書き出される）
+      await writeToFolder();
     } else {
-      // 年度・月が未入力なら、フォルダ内の一番新しい月を表示する
-      await openLatestMonth();
+      await writeMasterToFolder();
     }
     updateFileStatus();
   } catch (e) {
@@ -1677,22 +1700,22 @@ async function findLatestMonth(dh = dirHandle) {
   }
   return best;
 }
-// 選んだフォルダの中に、より新しい月次データの入ったフォルダ（令和8年度 など）があれば返す（無ければ null）
-async function findNewerSubfolder(dh) {
-  const own = await findLatestMonth(dh);
+// 連携フォルダ全体で一番新しい月（上の階層なら、すべての年度フォルダ 令和N年度 の中から）
+async function findLatestAll() {
+  if (isYearFolder(dirHandle)) return findLatestMonth(dirHandle);
   let best = null;
-  for await (const sub of dh.values()) {
-    if (sub.kind !== 'directory') continue;
+  for await (const sub of dirHandle.values()) {
+    if (sub.kind !== 'directory' || !isYearFolder(sub)) continue;
     const latest = await findLatestMonth(sub);
-    if (latest && (!best || latest.key > best.latest.key)) best = { handle: sub, latest };
+    if (latest && (!best || latest.key > best.key)) best = latest;
   }
-  return (best && (!own || best.latest.key > own.key)) ? best.handle : null;
+  return best;
 }
 // 一番新しい月のファイルを読み込んで表示（権限確認済みの前提）。読み込めたら true
 async function openLatestMonth() {
   if (!dirHandle) return false;
   try {
-    const latest = await findLatestMonth();
+    const latest = await findLatestAll();
     if (!latest) return false;
     const data = await readMonthFile(latest.year, latest.month);
     if (!data) return false;
@@ -1708,14 +1731,22 @@ async function grantAndOpenLatest() {
   if (!dirHandle) return;
   if (!(await ensurePerm(dirHandle, 'readwrite'))) return;
   document.getElementById('open-latest-btn').style.display = 'none';
-  if (await fetchFolderMaster()) {
-    initFromMaster();
-    renderVendors();
-    renderTable('cash');
-    renderTable('transfer');
-  }
-  await openLatestMonth();
+  await loadFromFolder();
   updateFileStatus();
+}
+// フォルダの一番新しい月を開き、その年度のマスターを読み込む（権限確認済みの前提）
+async function loadFromFolder() {
+  const opened = await openLatestMonth();
+  if (await fetchFolderMaster()) {
+    if (!opened) {
+      initFromMaster();
+      renderVendors();
+      renderTable('cash');
+      renderTable('transfer');
+    }
+  } else {
+    await writeMasterToFolder();
+  }
 }
 
 // 新規作成：新しい月を白紙（マスターの支払先・金額0）から始める
@@ -1785,17 +1816,8 @@ document.addEventListener('keydown', e => {
     if (dh) {
       dirHandle = dh;
       if ((await dh.queryPermission({ mode: 'readwrite' })) === 'granted') {
-        const gotMaster = await fetchFolderMaster();
-        if (gotMaster) {
-          initFromMaster();
-          renderVendors();
-          renderTable('cash');
-          renderTable('transfer');
-        } else {
-          await writeMasterToFolder();
-        }
-        // 一番新しい月のデータを表示する
-        await openLatestMonth();
+        // 一番新しい月のデータを表示し、その年度のマスターを読み込む
+        await loadFromFolder();
       } else {
         // ブラウザを開き直した直後などは許可にクリック操作が要るため、ボタンを出す
         document.getElementById('open-latest-btn').style.display = '';
