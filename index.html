@@ -1955,13 +1955,33 @@ function printMeisai() {
   .vamt  { font-size: 10.5pt; margin: 2px 0 2px; }
   .vnotes { font-size: 9.5pt; color: #555; margin: 0 0 4px; }
   .vparts { font-size: 9pt; color: #444; margin: 0 0 2px; }
-  @media print { @page { margin: 15mm 20mm; } }
+  /* 用紙の印字幅（A4 210mm − 左右余白 40mm）に固定して、画面上で印刷時と同じ高さを測れるようにする */
+  .sheet { width: 170mm; display: flow-root; }
+  @media print {
+    @page { margin: 15mm 20mm; size: A4 portrait; }
+    /* 余白は @page だけにする（body の余白と二重にならないように） */
+    body { margin: 0; padding: 0; }
+  }
 </style>
-</head><body>${body}
-<script>window.onload=()=>window.print()<\/script>
+</head><body><div class="sheet" id="sheet">${body}</div>
+<script>
+  // A4 1枚（297mm − 上下余白 30mm = 267mm）に収まらないときは全体を縮小する
+  function fitOnePage() {
+    const sheet = document.getElementById('sheet');
+    const avail = 267 * 96 / 25.4;
+    // 縮小すると細い線や小さな文字は比例して縮まないため、実際の高さを測り直しながら詰める
+    let z = 1;
+    while (sheet.getBoundingClientRect().height > avail && z > 0.1) {
+      const h = sheet.getBoundingClientRect().height;
+      z = Math.min(z - 0.01, Math.floor(avail * 0.98 / h * z * 100) / 100);
+      sheet.style.zoom = String(z);
+    }
+  }
+  window.onload=()=>{ fitOnePage(); window.print(); };
+<\/script>
 </body></html>`;
 
-  const w = window.open('', '_blank', 'width=720,height=850');
+  const w = window.open('', '_blank', 'width=840,height=850');
   if (!w) { alert('ポップアップをブロックしています。許可してください。'); return; }
   w.document.write(html);
   w.document.close();
