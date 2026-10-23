@@ -433,8 +433,10 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
     <label>月</label>
     <input id="h-month" type="text" placeholder="例: 4" maxlength="2" style="width:55px" onchange="onPeriodChange()">
     <span id="file-status" style="font-size:0.72rem;color:var(--ios-text-tertiary);white-space:nowrap"></span>
+    <button class="btn btn-blue btn-xs" id="open-latest-btn" style="display:none" onclick="grantAndOpenLatest()">最新の月を開く</button>
   </div>
   <div class="header-buttons">
+    <button class="btn btn-white" onclick="openNewMonth()">新規作成</button>
     <button class="btn btn-white" onclick="saveCurrent()">保存</button>
     <label class="btn btn-white" style="cursor:pointer">読込<input type="file" accept=".json" onchange="loadJSON(event)" style="display:none"></label>
     <div class="hdr-sep"></div>
@@ -671,6 +673,33 @@ tr.drag-over { outline: 2px solid var(--ios-blue); outline-offset: -1px; }
         <button class="btn btn-gray" onclick="closeEntryModal()">キャンセル</button>
         <button class="btn btn-blue" onclick="saveEntry()">保存</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: 新規作成（新しい月）===== -->
+<div id="newmonth-overlay" class="overlay hidden">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-title">新規作成（新しい月）</div>
+    <div class="fg row">
+      <div class="fg" style="margin:0">
+        <label>年度</label>
+        <input id="nm-year" type="text" inputmode="numeric" maxlength="4" placeholder="例: 8"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('nm-month').select()}">
+      </div>
+      <div class="fg" style="margin:0">
+        <label>月</label>
+        <input id="nm-month" type="text" inputmode="numeric" maxlength="2" placeholder="例: 4"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();createNewMonth()}">
+      </div>
+    </div>
+    <div style="font-size:0.78rem;color:var(--ios-text-secondary);line-height:1.6;margin-top:4px">
+      現金・振込の支払先はマスターの一覧から作り直し、金額は0、月末明細は空になります。<br>
+      今の画面の内容は消えるので、保存がまだなら先に「保存」してください。
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-gray" onclick="closeNewMonth()">キャンセル</button>
+      <button class="btn btn-blue" onclick="createNewMonth()">作成</button>
     </div>
   </div>
 </div>
@@ -1529,6 +1558,7 @@ async function chooseFolder() {
     const dh = await window.showDirectoryPicker({ mode: 'readwrite' });
     dirHandle = dh;
     await idbSet('dirHandle', dh);
+    document.getElementById('open-latest-btn').style.display = 'none';
 
     // マスターデータ（会社マスター）もフォルダと同期。フォルダに無ければ現在のマスターを書き出す
     const gotMaster = await fetchFolderMaster();
@@ -1548,6 +1578,9 @@ async function chooseFolder() {
       } else if (!data) {
         await writeToFolder();
       }
+    } else {
+      // 年度・月が未入力なら、フォルダ内の一番新しい月を表示する
+      await openLatestMonth();
     }
     updateFileStatus();
   } catch (e) {
@@ -1609,6 +1642,118 @@ async function onPeriodChange() {
     updateFileStatus('new');
   }
 }
+
+// ============================================================
+// 最新の月を開く／新規作成
+// ============================================================
+// 読み込んだ月次データを画面に反映
+function applyMonthData(data) {
+  S.vendors  = data.vendors  || [];
+  S.cash     = data.cash     || [];
+  S.transfer = data.transfer || [];
+  selV = selC = selT = null;
+  renderVendors();
+  renderTable('cash');
+  renderTable('transfer');
+}
+// 年度・月の並び順（年度は4月始まり：4月→…→12月→1月→2月→3月）
+function fiscalKey(year, month) {
+  return +year * 12 + (+month >= 4 ? +month - 4 : +month + 8);
+}
+// フォルダ内の「月末データ_8年10月.json」などから一番新しい月を探す（無ければ null）
+async function findLatestMonth() {
+  let best = null;
+  for await (const h of dirHandle.values()) {
+    if (h.kind !== 'file') continue;
+    const m = h.name.match(/^月末データ_(\d+)年(\d+)月\.json$/);
+    if (!m || +m[2] < 1 || +m[2] > 12) continue;
+    const key = fiscalKey(m[1], m[2]);
+    if (!best || key > best.key) best = { year: m[1], month: m[2], key };
+  }
+  return best;
+}
+// 一番新しい月のファイルを読み込んで表示（権限確認済みの前提）。読み込めたら true
+async function openLatestMonth() {
+  if (!dirHandle) return false;
+  try {
+    const latest = await findLatestMonth();
+    if (!latest) return false;
+    const data = await readMonthFile(latest.year, latest.month);
+    if (!data) return false;
+    document.getElementById('h-year').value  = latest.year;
+    document.getElementById('h-month').value = latest.month;
+    applyMonthData(data);
+    updateFileStatus();
+    return true;
+  } catch (e) { return false; }
+}
+// 起動時にフォルダの許可が無かった場合：ボタン（クリック操作）で許可を取り、最新の月を開く
+async function grantAndOpenLatest() {
+  if (!dirHandle) return;
+  if (!(await ensurePerm(dirHandle, 'readwrite'))) return;
+  document.getElementById('open-latest-btn').style.display = 'none';
+  if (await fetchFolderMaster()) {
+    initFromMaster();
+    renderVendors();
+    renderTable('cash');
+    renderTable('transfer');
+  }
+  await openLatestMonth();
+  updateFileStatus();
+}
+
+// 新規作成：新しい月を白紙（マスターの支払先・金額0）から始める
+function openNewMonth() {
+  const h = getHeader();
+  let y = '', m = '';
+  if (/^\d+$/.test(h.year) && /^\d+$/.test(h.month) && +h.month >= 1 && +h.month <= 12) {
+    // 今の月の次の月（3月の次は翌年度の4月）
+    const cur = +h.month;
+    m = String(cur === 12 ? 1 : cur + 1);
+    y = String(cur === 3 ? +h.year + 1 : +h.year);
+  }
+  document.getElementById('nm-year').value  = y;
+  document.getElementById('nm-month').value = m;
+  document.getElementById('newmonth-overlay').classList.remove('hidden');
+  setTimeout(() => document.getElementById(y ? 'nm-month' : 'nm-year').select(), 50);
+}
+function closeNewMonth() {
+  document.getElementById('newmonth-overlay').classList.add('hidden');
+}
+async function createNewMonth() {
+  const year  = normNum(document.getElementById('nm-year').value);
+  const month = normNum(document.getElementById('nm-month').value);
+  if (!/^\d+$/.test(year)) { alert('年度を半角数字で入力してください'); return; }
+  if (!/^\d+$/.test(month) || +month < 1 || +month > 12) { alert('月は 1〜12 の半角数字で入力してください'); return; }
+  const fname = fileNameFor(year, month);
+  if (dirHandle) {
+    // 同じ月のファイルを白紙で上書きしないよう、先にフォルダを確認
+    if (!(await ensurePerm(dirHandle, 'readwrite'))) {
+      alert('フォルダへのアクセスが許可されていないため、同じ月のファイルがあるか確認できませんでした。');
+      return;
+    }
+    if (await monthFileExists(year, month)) {
+      if (!confirm(`フォルダ内に ${fname} がすでにあります。\n白紙にはせず、そのファイルを開きますか？`)) return;
+      const data = await readMonthFile(year, month);
+      if (!data) { alert(`${fname} を読み込めませんでした（空か、壊れている可能性があります）。`); return; }
+      document.getElementById('h-year').value  = year;
+      document.getElementById('h-month').value = month;
+      applyMonthData(data);
+      closeNewMonth();
+      updateFileStatus();
+      return;
+    }
+  }
+  document.getElementById('h-year').value  = year;
+  document.getElementById('h-month').value = month;
+  initFromMaster();
+  selV = selC = selT = null;
+  renderVendors();
+  renderTable('cash');
+  renderTable('transfer');
+  closeNewMonth();
+  updateFileStatus('new');
+}
 // Ctrl+S で保存
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -1633,6 +1778,11 @@ document.addEventListener('keydown', e => {
         } else {
           await writeMasterToFolder();
         }
+        // 一番新しい月のデータを表示する
+        await openLatestMonth();
+      } else {
+        // ブラウザを開き直した直後などは許可にクリック操作が要るため、ボタンを出す
+        document.getElementById('open-latest-btn').style.display = '';
       }
       updateFileStatus();
     }
@@ -2090,6 +2240,10 @@ function makeBackdropClose(id, fn) {
 makeBackdropClose('vendor-overlay',   closeVendorModal);
 makeBackdropClose('entry-overlay',    closeEntryModal);
 makeBackdropClose('settings-overlay', closeSettings);
+makeBackdropClose('newmonth-overlay', closeNewMonth);
+document.getElementById('newmonth-overlay').addEventListener('keydown', ev => {
+  if (ev.key === 'Escape') { ev.preventDefault(); closeNewMonth(); }
+});
 makeBackdropClose('confirm-overlay',  () => document.getElementById('confirm-no-btn').click());
 
 // ============================================================
