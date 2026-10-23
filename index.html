@@ -1555,7 +1555,12 @@ async function chooseFolder() {
     return;
   }
   try {
-    const dh = await window.showDirectoryPicker({ mode: 'readwrite' });
+    let dh = await window.showDirectoryPicker({ mode: 'readwrite' });
+    // 年度フォルダ（令和8年度 など）の上の階層を選んだ場合は、中の年度フォルダを連携するか確認する
+    const sub = await findNewerSubfolder(dh);
+    if (sub && confirm(`選んだ「${dh.name}」の中に「${sub.name}」フォルダがあり、新しい月のデータはそちらに入っています。\n「${sub.name}」フォルダを連携しますか？\n\nOK: 「${sub.name}」を連携する\nキャンセル: 「${dh.name}」のまま連携する`)) {
+      dh = sub;
+    }
     dirHandle = dh;
     await idbSet('dirHandle', dh);
     document.getElementById('open-latest-btn').style.display = 'none';
@@ -1661,9 +1666,9 @@ function fiscalKey(year, month) {
   return +year * 12 + (+month >= 4 ? +month - 4 : +month + 8);
 }
 // フォルダ内の「月末データ_8年10月.json」などから一番新しい月を探す（無ければ null）
-async function findLatestMonth() {
+async function findLatestMonth(dh = dirHandle) {
   let best = null;
-  for await (const h of dirHandle.values()) {
+  for await (const h of dh.values()) {
     if (h.kind !== 'file') continue;
     const m = h.name.match(/^月末データ_(\d+)年(\d+)月\.json$/);
     if (!m || +m[2] < 1 || +m[2] > 12) continue;
@@ -1671,6 +1676,17 @@ async function findLatestMonth() {
     if (!best || key > best.key) best = { year: m[1], month: m[2], key };
   }
   return best;
+}
+// 選んだフォルダの中に、より新しい月次データの入ったフォルダ（令和8年度 など）があれば返す（無ければ null）
+async function findNewerSubfolder(dh) {
+  const own = await findLatestMonth(dh);
+  let best = null;
+  for await (const sub of dh.values()) {
+    if (sub.kind !== 'directory') continue;
+    const latest = await findLatestMonth(sub);
+    if (latest && (!best || latest.key > best.latest.key)) best = { handle: sub, latest };
+  }
+  return (best && (!own || best.latest.key > own.key)) ? best.handle : null;
 }
 // 一番新しい月のファイルを読み込んで表示（権限確認済みの前提）。読み込めたら true
 async function openLatestMonth() {
